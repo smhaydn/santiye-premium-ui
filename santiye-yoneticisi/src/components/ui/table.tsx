@@ -52,9 +52,36 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   )
 }
 
-function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
+import { useRef, useEffect } from "react"
+import gsap from "gsap"
+
+function TableRow({
+  className,
+  staggerIndex,
+  ...props
+}: React.ComponentProps<"tr"> & {
+  staggerIndex?: number
+}) {
+  const rowRef = useRef<HTMLTableRowElement>(null);
+
+  useEffect(() => {
+    if (rowRef.current && staggerIndex !== undefined) {
+      gsap.fromTo(rowRef.current,
+        { opacity: 0, x: -10 },
+        {
+          opacity: 1,
+          x: 0,
+          duration: 0.5,
+          delay: staggerIndex * 0.05,
+          ease: "power2.out"
+        }
+      );
+    }
+  }, [staggerIndex]);
+
   return (
     <tr
+      ref={rowRef}
       data-slot="table-row"
       className={cn(
         "hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors",

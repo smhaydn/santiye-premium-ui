@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,14 +8,18 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Building2, Mail, Phone, MapPin, User, FileText, Globe, Settings, Upload } from "lucide-react";
+import { Building2, Mail, Phone, MapPin, User, FileText, Globe, CheckCircle2, ChevronRight, ChevronLeft, Save, Truck, Activity } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
+import gsap from 'gsap';
+import { cn } from "@/lib/utils";
+import { toast } from 'sonner';
 
-export default function NewSupplierPage() {
+export default function NewSupplierWizardPage() {
     const router = useRouter();
+    const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const stepContainerRef = useRef<HTMLDivElement>(null);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -36,10 +39,28 @@ export default function NewSupplierPage() {
         is_active: true
     });
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
+    // Step Transition Animation
+    useEffect(() => {
+        if (stepContainerRef.current) {
+            gsap.fromTo(stepContainerRef.current,
+                { x: 30, opacity: 0 },
+                { x: 0, opacity: 1, duration: 0.6, ease: "expo.out" }
+            );
+        }
+    }, [step]);
 
+    const nextStep = () => {
+        if (step === 1 && !formData.name) {
+            toast.error("Lütfen firma adını giriniz.");
+            return;
+        }
+        setStep(prev => Math.min(prev + 1, 3));
+    };
+
+    const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
+
+    const handleSubmit = async () => {
+        setLoading(true);
         try {
             const res = await fetch('/api/suppliers', {
                 method: 'POST',
@@ -48,226 +69,225 @@ export default function NewSupplierPage() {
             });
 
             const result = await res.json();
-
             if (result.success) {
-                alert("✅ Firma Başarıyla Kaydedildi!");
+                toast.success("✅ Firma başarıyla kaydedildi.");
                 router.push('/tedarikciler');
             } else {
-                alert("Hata: " + result.error);
+                toast.error("Hata: " + result.error);
             }
         } catch (err) {
-            alert("Bağlantı Hatası");
+            toast.error("Bağlantı hatası");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="flex flex-col h-full bg-[#f8f9fa]">
-            <PageHeader title="Yeni Firma Ekle" backLink="/tedarikciler" />
+        <div className="w-full max-w-4xl mx-auto space-y-6 font-sans pb-32 px-4">
+            <PageHeader
+                title="Yeni Firma Kaydı"
+                backLink="/tedarikciler"
+                subtitle={`${step}. ADIM: ${step === 1 ? 'FİRMA KİMLİĞİ' : step === 2 ? 'ADRES VE KONUM' : 'YETKİLİ VE ONAY'}`}
+            />
 
-            <div className="flex-1 overflow-y-auto p-4 md:p-8">
-                <div className="max-w-5xl mx-auto space-y-6 pb-10">
+            {/* Steps Progress */}
+            <div className="flex items-center justify-between px-12 mb-10 relative">
+                <div className="absolute top-1/2 left-12 right-12 h-1 bg-border/40 -translate-y-1/2 z-0 rounded-full" />
+                <div
+                    className="absolute top-1/2 left-12 h-1 bg-primary -translate-y-1/2 z-1 transition-all duration-700 ease-in-out rounded-full shadow-[0_0_15px_rgba(var(--primary),0.4)]"
+                    style={{ width: `calc(${(step - 1) / 2} * (100% - 6rem))` }}
+                />
 
-                    <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
-                        <div className="p-4 border-b bg-neutral-50 px-8 py-6">
-                            <h1 className="text-xl font-bold text-neutral-800">Firma Bilgileri</h1>
-                            <p className="text-sm text-neutral-500 mt-1">Yeni bir taşeron veya tedarikçi firması oluşturun.</p>
+                {[1, 2, 3].map((s) => (
+                    <div
+                        key={s}
+                        className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center border-4 transition-all duration-500 ${step >= s ? 'bg-primary border-primary text-white scale-110 shadow-xl shadow-primary/20' : 'bg-background border-border text-muted-foreground'
+                            }`}
+                    >
+                        {step > s ? <CheckCircle2 className="w-7 h-7" /> : <span className="text-base font-black">{s}</span>}
+                    </div>
+                ))}
+            </div>
+
+            <Card delay={0.1} className="glass-card shadow-2xl rounded-[3rem] overflow-hidden border-none min-h-[500px] flex flex-col relative transition-all duration-500">
+                <CardHeader className="p-8 pb-4 border-b border-border/40 bg-muted/10">
+                    <div className="flex items-center gap-5">
+                        <div className={`p-4 rounded-2xl transition-all duration-500 shadow-inner ${step === 1 ? 'bg-primary/10 text-primary' : step === 2 ? 'bg-blue-500/10 text-blue-500' : 'bg-green-500/10 text-green-500'
+                            }`}>
+                            {step === 1 ? <Building2 className="w-7 h-7" /> : step === 2 ? <MapPin className="w-7 h-7" /> : <User className="w-7 h-7" />}
                         </div>
+                        <div>
+                            <CardTitle className="text-2xl font-black tracking-tight">{step === 1 ? 'Firma Bilgileri' : step === 2 ? 'Lokasyon Detayları' : 'İrtibat & Ayarlar'}</CardTitle>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{step}/3 AŞAMA • TEDARİKÇİ PORTALI</p>
+                        </div>
+                    </div>
+                </CardHeader>
 
-                        <form onSubmit={handleSubmit} className="p-8 space-y-8">
-
-                            {/* Firma Tipi */}
+                <CardContent className="flex-1 p-8 md:p-12" ref={stepContainerRef}>
+                    {step === 1 && (
+                        <div className="space-y-8">
                             <div className="space-y-3">
-                                <Label className="text-neutral-500 font-normal">Firma Tipi</Label>
-                                <RadioGroup defaultValue="taseron" className="flex items-center gap-6" onValueChange={(val) => setFormData({ ...formData, type: val })}>
-                                    <div className="flex items-center space-x-2 border p-3 rounded-md w-40 bg-blue-50 border-blue-200">
-                                        <RadioGroupItem value="taseron" id="taseron" className="text-blue-600" />
-                                        <Label htmlFor="taseron" className="font-medium text-blue-700 cursor-pointer">Taşeron</Label>
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Firma Tipi</Label>
+                                <RadioGroup defaultValue={formData.type} className="flex flex-wrap gap-4" onValueChange={(val) => setFormData({ ...formData, type: val })}>
+                                    <div className={cn("flex items-center space-x-3 border-2 p-5 rounded-2xl w-full sm:w-48 transition-all cursor-pointer group", formData.type === 'taseron' ? "border-primary bg-primary/5 shadow-lg" : "border-border/60 hover:border-primary/30")}>
+                                        <RadioGroupItem value="taseron" id="taseron" className="w-5 h-5" />
+                                        <Label htmlFor="taseron" className="font-black text-sm cursor-pointer flex items-center gap-2">
+                                            <User className="w-4 h-4" /> TAŞERON
+                                        </Label>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="tedarikci" id="tedarikci" />
-                                        <Label htmlFor="tedarikci" className="cursor-pointer">Tedarikçi</Label>
+                                    <div className={cn("flex items-center space-x-3 border-2 p-5 rounded-2xl w-full sm:w-48 transition-all cursor-pointer group", formData.type === 'tedarikci' ? "border-orange-500 bg-orange-500/5 shadow-lg" : "border-border/60 hover:border-orange-300")}>
+                                        <RadioGroupItem value="tedarikci" id="tedarikci" className="w-5 h-5" />
+                                        <Label htmlFor="tedarikci" className="font-black text-sm cursor-pointer flex items-center gap-2">
+                                            <Truck className="w-4 h-4" /> TEDARİKÇİ
+                                        </Label>
                                     </div>
                                 </RadioGroup>
                             </div>
 
-                            <Separator />
-
-                            {/* Genel Bilgiler */}
-                            <div className="space-y-4">
-                                <h3 className="text-sm font-semibold text-neutral-500">Genel Bilgiler</h3>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-neutral-400"><Building2 className="w-4 h-4" /></span>
-                                            <Input placeholder="Firma Adı*" className="pl-10 border-red-200 bg-red-50 focus:bg-white transition-colors" required
-                                                value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-                                        </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                                <div className="space-y-3 col-span-1 md:col-span-2">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Firma Resmi Ünvanı *</Label>
+                                    <div className="relative">
+                                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/40" />
+                                        <Input placeholder="Tam firma adını giriniz..." value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="h-16 pl-12 text-xl font-black bg-muted/5 border-border/60 rounded-2xl focus:ring-primary/20" />
                                     </div>
-                                    <div className="space-y-2">
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-neutral-400"><Mail className="w-4 h-4" /></span>
-                                            <Input placeholder="Email" className="pl-10" type="email"
-                                                value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-                                        </div>
+                                </div>
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Email Adresi</Label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/40" />
+                                        <Input type="email" placeholder="email@firma.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="h-14 pl-12 rounded-xl bg-muted/5 border-border/60 font-bold" />
                                     </div>
-
-                                    <div className="space-y-2">
-                                        <div className="relative flex">
-                                            <span className="absolute left-3 top-2.5 text-neutral-400"><Phone className="w-4 h-4" /></span>
-                                            <div className="absolute left-10 top-2.5 text-sm font-semibold text-neutral-600 border-r pr-2 h-5 flex items-center">+90</div>
-                                            <Input placeholder="5XX XXX XX XX" className="pl-24" type="tel"
-                                                value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div className="relative flex">
-                                            <span className="absolute left-3 top-2.5 text-neutral-400"><Phone className="w-4 h-4" /></span>
-                                            <Input placeholder="Fax" className="pl-10"
-                                                value={formData.fax} onChange={(e) => setFormData({ ...formData, fax: e.target.value })} />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2 col-span-2">
-                                        <Select>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Ticari Faaliyetler (Örn: Elektrik, Mekanik...)" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="elektrik">Elektrik</SelectItem>
-                                                <SelectItem value="mekanik">Mekanik</SelectItem>
-                                                <SelectItem value="insaat">İnşaat</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                </div>
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Telefon</Label>
+                                    <div className="relative">
+                                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/40" />
+                                        <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="h-14 pl-12 rounded-xl bg-muted/5 border-border/60 font-bold" placeholder="05XX XXX XX XX" />
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    )}
 
-                            <Separator />
-
-                            {/* Adres Bilgileri */}
-                            <div className="space-y-4">
-                                <h3 className="text-sm font-semibold text-neutral-500">Adres Bilgileri</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-neutral-400"><Globe className="w-4 h-4" /></span>
-                                            <Select value={formData.country} onValueChange={(val) => setFormData({ ...formData, country: val })}>
-                                                <SelectTrigger className="pl-10">
-                                                    <SelectValue placeholder="Ülke Seçiniz" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="tr">Türkiye</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-neutral-400"><MapPin className="w-4 h-4" /></span>
-                                            <Select onValueChange={(val) => setFormData({ ...formData, city: val })}>
-                                                <SelectTrigger className="pl-10">
-                                                    <SelectValue placeholder="Şehir Seçiniz" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="İstanbul">İstanbul</SelectItem>
-                                                    <SelectItem value="Ankara">Ankara</SelectItem>
-                                                    <SelectItem value="İzmir">İzmir</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    <div className="col-span-2">
-                                        <Textarea placeholder="Adres" className="min-h-[80px]"
-                                            value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
-                                    </div>
+                    {step === 2 && (
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Ülke</Label>
+                                    <Select value={formData.country} onValueChange={(val) => setFormData({ ...formData, country: val })}>
+                                        <SelectTrigger className="h-14 rounded-xl border-border/60 bg-muted/5 font-bold">
+                                            <div className="flex items-center gap-2">
+                                                <Globe className="w-4 h-4 text-primary" />
+                                                <SelectValue />
+                                            </div>
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl glass">
+                                            <SelectItem value="tr">TÜRKİYE</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Şehir</Label>
+                                    <Select onValueChange={(val) => setFormData({ ...formData, city: val })} value={formData.city}>
+                                        <SelectTrigger className="h-14 rounded-xl border-border/60 bg-muted/5 font-bold">
+                                            <div className="flex items-center gap-2">
+                                                <MapPin className="w-4 h-4 text-primary" />
+                                                <SelectValue placeholder="Seçiniz..." />
+                                            </div>
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl glass">
+                                            {["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Konya", "Gaziantep"].map(c => (
+                                                <SelectItem key={c} value={c} className="rounded-lg">{c.toUpperCase()}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="col-span-1 md:col-span-2 space-y-3">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Detaylı Adres</Label>
+                                    <Textarea
+                                        placeholder="Cadde, sokak, mahalle, no..."
+                                        className="min-h-[120px] rounded-2xl border-border/60 bg-muted/5 font-medium p-6"
+                                        value={formData.address}
+                                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                    />
                                 </div>
                             </div>
+                        </div>
+                    )}
 
-                            <Separator />
-
-                            {/* Yetkili Kişi */}
-                            <div className="space-y-4">
-                                <h3 className="text-sm font-semibold text-neutral-500">Yetkili Kişi Bilgileri</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-neutral-400"><User className="w-4 h-4" /></span>
-                                            <Input placeholder="Yetkili Kişi" className="pl-10"
-                                                value={formData.contact_name} onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-neutral-400"><Mail className="w-4 h-4" /></span>
-                                            <Input placeholder="Yetkili Kişi Email" className="pl-10" type="email"
-                                                value={formData.contact_email} onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-neutral-400"><Phone className="w-4 h-4" /></span>
-                                            <Input placeholder="Yetkili Kişi Tel (Opsiyonel)" className="pl-10" type="tel"
-                                                value={formData.contact_phone} onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })} />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-neutral-400"><FileText className="w-4 h-4" /></span>
-                                            <Input placeholder="Notlar" className="pl-10"
-                                                value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
-                                        </div>
+                    {step === 3 && (
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Yetkili Ad Soyad</Label>
+                                    <div className="relative">
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/40" />
+                                        <Input placeholder="Yetkili Kişi" value={formData.contact_name} onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })} className="h-14 pl-12 rounded-xl bg-muted/5 border-border/60 font-bold" />
                                     </div>
                                 </div>
-                            </div>
-
-                            <Separator />
-
-                            {/* Ek Bilgiler */}
-                            <div className="space-y-4">
-                                <h3 className="text-sm font-semibold text-neutral-500">Ek Bilgiler</h3>
-                                <div className="grid grid-cols-1 gap-6">
-                                    <div className="bg-white border rounded-lg p-4 flex items-center gap-4">
-                                        <div className="p-2 bg-neutral-100 rounded">
-                                            <Settings className="w-5 h-5 text-neutral-500" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="font-medium text-sm">Aktif Kullanım</div>
-                                            <div className="text-xs text-neutral-400">Bu firmayı bütün projelerde aktif kullan.</div>
-                                        </div>
-                                        <Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} />
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Yetkili Telefon</Label>
+                                    <div className="relative">
+                                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/40" />
+                                        <Input value={formData.contact_phone} onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })} className="h-14 pl-12 rounded-xl bg-muted/5 border-border/60 font-bold" />
                                     </div>
                                 </div>
-                            </div>
-
-                            <Separator />
-
-                            {/* Doküman Ekle */}
-                            <div className="space-y-4">
-                                <h3 className="text-sm font-semibold text-neutral-500">Doküman Ekle</h3>
-                                <div className="grid grid-cols-1 gap-6">
-                                    <div className="border-2 border-dashed border-neutral-300 rounded-lg p-8 flex flex-col items-center justify-center text-center hover:bg-neutral-50 cursor-pointer transition">
-                                        <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-3">
-                                            <Upload className="w-6 h-6" />
+                                <div className="col-span-1 md:col-span-2 space-y-3 p-6 bg-primary/5 rounded-[2rem] border border-primary/20">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-3 bg-primary/10 rounded-xl">
+                                                <Activity className="w-6 h-6 text-primary" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-black text-sm uppercase tracking-tight">Firma Aktiflik Durumu</h4>
+                                                <p className="text-xs text-muted-foreground">Aktif olmayan firmalar yeni kayıtlarda seçilemez.</p>
+                                            </div>
                                         </div>
-                                        <div className="font-medium text-neutral-700">Dosya Yükle veya Sürükle Bırak</div>
-                                        <div className="text-xs text-neutral-400 mt-1">PDF, PNG, JPG (Max: 150MB)</div>
+                                        <Switch checked={formData.is_active} onCheckedChange={(val) => setFormData({ ...formData, is_active: val })} className="scale-125" />
                                     </div>
                                 </div>
+                                <div className="col-span-1 md:col-span-2 space-y-3 mt-4">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Notlar</Label>
+                                    <Textarea placeholder="Firma hakkında ek bilgiler..." value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="rounded-2xl border-border/60 bg-muted/5" />
+                                </div>
                             </div>
+                        </div>
+                    )}
+                </CardContent>
 
-                            <div className="flex justify-end gap-3 pt-4">
-                                <Button type="submit" className="bg-blue-600 hover:bg-blue-700 min-w-[120px]" disabled={loading}>
-                                    {loading ? 'Kaydediliyor...' : 'Kaydet'}
-                                </Button>
-                            </div>
+                <div className="p-8 border-t border-border/40 mt-auto bg-muted/5 flex items-center justify-between gap-6">
+                    {step > 1 ? (
+                        <Button magnetic variant="ghost" onClick={prevStep} className="rounded-2xl h-16 px-10 font-black text-muted-foreground hover:text-foreground uppercase tracking-tight">
+                            <ChevronLeft className="mr-3 h-6 w-6" /> GERİ GİT
+                        </Button>
+                    ) : (
+                        <div />
+                    )}
 
-                        </form>
-                    </div>
+                    {step < 3 ? (
+                        <Button magnetic onClick={nextStep} className="rounded-2xl h-16 px-12 font-black shadow-2xl shadow-primary/20 bg-foreground text-background hover:bg-foreground/90 uppercase tracking-tight">
+                            SONRAKİ ADIM <ChevronRight className="ml-3 h-6 w-6" />
+                        </Button>
+                    ) : (
+                        <Button magnetic onClick={handleSubmit} disabled={loading} className="rounded-full h-16 px-16 font-black shadow-2xl shadow-primary/30 bg-primary hover:bg-primary/90 text-white uppercase tracking-tight">
+                            {loading ? (
+                                <span className="flex items-center gap-3">
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> YÜKLENİYOR...
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-3">
+                                    <Save className="w-6 h-6" /> FİRMAYI KAYDET
+                                </span>
+                            )}
+                        </Button>
+                    )}
                 </div>
-            </div>
+            </Card>
+
+            <p className="text-center text-[10px] font-black text-muted-foreground/30 uppercase tracking-[0.5em]">
+                LOFT 777 ENTERPRISE • V2.5.0
+            </p>
         </div>
     );
 }

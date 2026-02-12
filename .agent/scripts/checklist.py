@@ -23,8 +23,13 @@ Priority Order:
 import sys
 import subprocess
 import argparse
+import io
 from pathlib import Path
 from typing import List, Tuple, Optional
+
+# Force UTF-8 for Windows
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # ANSI colors for terminal output
 class Colors:
@@ -87,7 +92,7 @@ def run_script(name: str, script_path: Path, project_path: str, url: Optional[st
     print_step(f"Running: {name}")
     
     # Build command
-    cmd = ["python", str(script_path), project_path]
+    cmd = [sys.executable, str(script_path), project_path]
     if url and ("lighthouse" in script_path.name.lower() or "playwright" in script_path.name.lower()):
         cmd.append(url)
     
@@ -106,6 +111,7 @@ def run_script(name: str, script_path: Path, project_path: str, url: Optional[st
             print_success(f"{name}: PASSED")
         else:
             print_error(f"{name}: FAILED")
+            print(result.stdout)  # Print report for failed checks
             if result.stderr:
                 print(f"  Error: {result.stderr[:200]}")
         

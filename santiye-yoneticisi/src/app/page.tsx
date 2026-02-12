@@ -1,34 +1,34 @@
-
 'use client';
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { supabase } from "@/lib/supabase";
-import { Calendar, AlertCircle, ArrowRight } from "lucide-react";
+import {
+  AlertCircle, ArrowRight, Activity, Hammer, Truck, FileText,
+  TrendingUp, DollarSign, Calendar, CheckCircle2, ChevronRight,
+  MoreHorizontal, Wallet, PieChart
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { useRef } from "react";
+import gsap from "gsap";
+import { cn } from "@/lib/utils";
+
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function Home() {
   const [stats, setStats] = useState({
     waybillCount: 0,
     requestCount: 0,
-    totalConcrete: 0
+    totalConcrete: 0,
+    pendingPayments: 0
   });
 
   const [upcomingChecks, setUpcomingChecks] = useState<any[]>([]);
   const [loadingChecks, setLoadingChecks] = useState(true);
 
   useEffect(() => {
-    // Fetch stats
-    fetch('/api/dashboard-stats')
-      .then(res => res.json())
-      .then(data => {
-        if (!data.error) setStats(data);
-      })
-      .catch(err => console.error(err));
-
-    // Fetch upcoming checks
     fetchUpcomingChecks();
   }, []);
 
@@ -44,7 +44,7 @@ export default function Home() {
         .gte('check_due_date', today.toISOString())
         .lte('check_due_date', nextMonth.toISOString())
         .order('check_due_date', { ascending: true })
-        .limit(5); // Show max 5 on dashboard
+        .limit(5);
 
       if (!error) {
         setUpcomingChecks(data || []);
@@ -57,147 +57,240 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f8f9fa]">
-      <PageHeader title="Şantiye Yöneticisi" subtitle="LOFT 777 MERKEZİ KONTROL PANELİ" />
+    <div className="flex flex-col h-full bg-background/50 font-sans overflow-y-auto custom-scrollbar">
+      <PageHeader
+        title="Merkezi Kontrol Paneli"
+        subtitle="LOFT 777 YÖNETİM SİSTEMİ"
+      >
+        <div className="flex items-center gap-2">
+          <div className="text-xs font-mono text-muted-foreground bg-secondary/50 px-2 py-1 rounded-full border border-border/50">
+            v2.4.0-premium
+          </div>
+        </div>
+      </PageHeader>
 
-      <div className="flex-1 overflow-y-auto p-6 font-sans">
-        <div className="w-full max-w-2xl mx-auto space-y-8">
+      <div className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-8">
 
-          {/* Dashboard Cards - Loft 777 Minimalist Style */}
-          <div className="grid grid-cols-2 gap-4">
+        {/* Hero / Welcome Section */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
 
+          {/* Main Action Card (Demir Bağlantı) */}
+          <div className="md:col-span-8 lg:col-span-8">
+            <Link href="/demir-baglanti" className="block h-full">
+              <Card delay={0.1} interactive className="relative h-full min-h-[220px] rounded-[2rem] overflow-hidden p-0 border-none group">
+                {/* Background Gradient & Pattern */}
+                <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a1a] via-[#0f0f0f] to-background z-0" />
+                <div className="absolute inset-0 bg-[url('/noise.png')] opacity-20 mix-blend-overlay" />
+                <div className="absolute -right-20 -top-20 w-96 h-96 bg-primary/20 rounded-full blur-[100px] group-hover:bg-primary/30 transition-colors duration-500" />
 
+                {/* Content */}
+                <div className="relative z-10 p-8 flex flex-col justify-between h-full">
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="px-3 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest border border-primary/20">
+                        Ana Modül
+                      </span>
+                      <span className="text-muted-foreground text-xs flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-md">
+                        <Activity className="w-3.5 h-3.5 text-primary" /> Canlı Veri
+                      </span>
+                    </div>
+                    <h2 className="text-3xl md:text-5xl font-heading font-black text-white mb-3 tracking-tight">
+                      Demir & <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-orange-400">Bağlantı</span>
+                    </h2>
+                    <p className="text-neutral-400 max-w-md text-sm leading-relaxed font-medium">
+                      Aktif sözleşmeleri yönetin, sevkiyatları takip edin ve hakediş raporlarını saniyeler içinde oluşturun.
+                    </p>
+                  </div>
 
-            {/* UPCOMING PAYMENTS WIDGET (NEW) */}
-            <div className="col-span-2 bg-white border border-zinc-100 rounded-2xl p-0 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              <div className="p-4 border-b border-zinc-50 bg-orange-50/50 flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <span className="bg-white p-1.5 rounded-lg text-orange-600 shadow-sm border border-orange-100">
-                    <AlertCircle className="w-4 h-4" />
-                  </span>
-                  <h3 className="font-bold text-zinc-800 text-sm">Yaklaşan Ödemeler (30 Gün)</h3>
+                  <div className="flex items-center gap-4 mt-8">
+                    <Button magnetic variant="default" className="rounded-full px-6 h-12 font-bold shadow-xl shadow-primary/20">
+                      Modülü Aç <ArrowRight className="w-4 h-4" />
+                    </Button>
+                    <div className="flex -space-x-2">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="w-9 h-9 rounded-full bg-neutral-800 border-2 border-neutral-900 flex items-center justify-center text-[10px] text-neutral-500">
+                          <Wallet className="w-4 h-4" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Decorative 3D Element Placeholder */}
+                <div className="absolute right-0 bottom-0 top-0 w-1/3 opacity-10 bg-gradient-to-l from-primary/30 to-transparent skew-x-12 hidden md:block" />
+              </Card>
+            </Link>
+          </div>
+
+          {/* Side Stats / Upcoming */}
+          <div className="md:col-span-4 lg:col-span-4 flex flex-col gap-4">
+            <Card delay={0.2} interactive className="flex-1 rounded-[2rem] p-6 border-l-4 border-l-orange-500 group/pay">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="font-black text-foreground flex items-center gap-2 text-lg">
+                    <Calendar className="w-5 h-5 text-orange-500" /> Ödemeler
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-1.5">Yaklaşan Çekler</p>
                 </div>
                 <Link href="/ceks">
-                  <Button variant="ghost" size="sm" className="h-7 text-[10px] uppercase font-bold text-zinc-400 hover:text-orange-600 hover:bg-white rounded-lg">
-                    Tümünü Gör <ArrowRight className="w-3 h-3 ml-1" />
+                  <Button magnetic variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-orange-500/10 hover:text-orange-500">
+                    <ChevronRight className="w-5 h-5" />
                   </Button>
                 </Link>
               </div>
 
-              <div className="p-2">
+              <div className="space-y-4">
                 {loadingChecks ? (
-                  <div className="text-center py-4 text-xs text-zinc-400">Yükleniyor...</div>
-                ) : upcomingChecks.length === 0 ? (
-                  <div className="text-center py-6 text-zinc-400 text-sm flex flex-col items-center gap-2">
-                    <span className="text-2xl opacity-50">🎉</span>
-                    <span>Yaklaşan ödeme bulunamadı.</span>
+                  <div className="flex items-center gap-3 animate-pulse">
+                    <div className="w-12 h-12 rounded-2xl bg-muted" />
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 w-24 bg-muted rounded" />
+                      <div className="h-3 w-16 bg-muted rounded" />
+                    </div>
                   </div>
+                ) : upcomingChecks.length > 0 ? (
+                  upcomingChecks.slice(0, 2).map((check, i) => (
+                    <div key={i} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/40 dark:hover:bg-white/5 transition-all border border-transparent hover:border-border/50 group/item">
+                      <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 font-black text-sm ring-1 ring-orange-500/20 group-hover/item:scale-110 transition-transform">
+                        <span>{new Date(check.check_due_date).getDate()}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold truncate text-foreground/80">{check.invoice_number}</div>
+                        <div className="text-xs text-muted-foreground font-mono">{Number(check.grand_total).toLocaleString('tr-TR')} ₺</div>
+                      </div>
+                      <div className="text-[9px] font-black text-orange-500 bg-orange-500/10 px-2 py-1 rounded-full uppercase tracking-tighter">
+                        Kritik
+                      </div>
+                    </div>
+                  ))
                 ) : (
-                  <div className="grid grid-cols-1 divide-y divide-zinc-50">
-                    {upcomingChecks.map((check) => {
-                      const daysLeft = Math.ceil((new Date(check.check_due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                      const isUrgent = daysLeft <= 7;
-                      return (
-                        <div key={check.id} className="flex items-center justify-between p-3 hover:bg-zinc-50 transition-colors rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className={`flex flex-col items-center justify-center w-10 h-10 rounded-lg border ${isUrgent ? 'bg-red-50 border-red-100 text-red-600' : 'bg-white border-zinc-200 text-zinc-500 shadow-sm'}`}>
-                              <span className="text-[10px] font-bold uppercase">{new Date(check.check_due_date).toLocaleDateString('tr-TR', { month: 'short' })}</span>
-                              <span className="text-sm font-bold leading-none">{new Date(check.check_due_date).getDate()}</span>
-                            </div>
-                            <div>
-                              <div className="text-sm font-bold text-zinc-800">{check.invoice_number}</div>
-                              <div className={`text-[10px] font-bold ${isUrgent ? 'text-red-500' : 'text-zinc-400'}`}>
-                                {daysLeft < 0 ? 'VADESİ GEÇTİ' : `${daysLeft} GÜN KALDI`}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="font-mono font-bold text-right text-zinc-700 text-sm">
-                            {Number(check.grand_total).toLocaleString('tr-TR')} ₺
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <div className="text-center text-xs text-muted-foreground py-6 bg-muted/20 rounded-2xl border-2 border-dashed border-border/40">Yaklaşan ödeme bulunamadı.</div>
                 )}
               </div>
-            </div>
+            </Card>
 
-            {/* Demir Bağlantı Kartı (v2) - Hero Card (Soft Light Theme) */}
-            <Link href="/demir-baglanti" className="block col-span-2 bg-gradient-to-br from-white to-zinc-50 rounded-2xl p-6 relative overflow-hidden shadow-lg shadow-zinc-200/50 group cursor-pointer border border-zinc-100 hover:border-orange-200 transition-all active:scale-[0.99]">
-              {/* Decorative background element */}
-              <div className="absolute right-0 top-0 bottom-0 w-32 bg-orange-500/5 skew-x-[-20deg] mr-[-20px] transition-transform group-hover:skew-x-[-10deg]"></div>
-
-              <div className="relative z-10 flex justify-between items-center">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse shadow-sm shadow-orange-300"></div>
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Ana Yönetim Modülü</span>
+            <Link href="/beton" className="flex-1">
+              <Card delay={0.3} interactive className="h-full rounded-[2rem] p-6 flex items-center justify-between border-l-4 border-l-blue-500 group/beton overflow-hidden relative">
+                <div className="flex items-center gap-5 relative z-10">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center group-hover/beton:scale-110 group-hover/beton:rotate-6 transition-all duration-500">
+                    <Hammer className="w-7 h-7" />
                   </div>
-                  <h3 className="text-2xl font-bold text-zinc-800 tracking-tight font-sans">Demir & Bağlantı Yönetimi</h3>
-                  <p className="text-zinc-500 text-xs mt-1 max-w-md font-medium">Aktif bağlantılar, stok durumu ve sevkiyat planlaması.</p>
+                  <div>
+                    <h3 className="font-black text-foreground text-lg">Beton Dökümü</h3>
+                    <p className="text-xs text-muted-foreground font-medium mt-0.5">Günlük Kalite & Takip</p>
+                  </div>
                 </div>
-                <Button className="bg-zinc-900 hover:bg-orange-600 text-white rounded-xl px-6 h-10 font-bold tracking-wide border-none shadow-xl shadow-zinc-900/10 pointer-events-none transition-colors">
-                  YÖNETİM PANELİ <span className="ml-2">→</span>
+                <Button magnetic variant="outline" size="icon" className="h-10 w-10 rounded-full border-blue-500/20 text-blue-500 hover:bg-blue-500 hover:text-white relative z-10">
+                  <PlusIcon className="w-5 h-5" />
                 </Button>
-              </div>
+                <div className="absolute right-0 top-0 bottom-0 w-24 bg-blue-500/5 -skew-x-12 translate-x-12" />
+              </Card>
             </Link>
-
-            {/* Talep Kartı (Compact) */}
-            <div className="col-span-2 bg-white border border-zinc-100 rounded-2xl p-4 flex justify-between items-center group hover:bg-zinc-50 transition-colors shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-400 rounded-xl shadow-sm">
-                  <span className="text-lg">🛒</span>
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-zinc-800">Malzeme Talepleri</div>
-                  <div className="text-xs text-zinc-500 font-medium group-hover:text-blue-600 transition-colors">{stats.requestCount} adet onay bekleyen talep var</div>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" asChild className="h-8 text-xs bg-white border-zinc-200 hover:border-zinc-300 text-zinc-600 rounded-lg">
-                <Link href="/talep">İncele</Link>
-              </Button>
-            </div>
-
           </div>
-
-          {/* Quick Actions Title */}
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-[1px] bg-zinc-100 flex-1"></div>
-              <h4 className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest whitespace-nowrap">Hızlı İşlemler</h4>
-              <div className="h-[1px] bg-zinc-100 flex-1"></div>
-            </div>
-
-            {/* Action Buttons (Architectural Style) */}
-            <div className="grid grid-cols-2 gap-3">
-              <Button asChild className="col-span-1 w-full h-16 bg-white border border-zinc-100 hover:border-blue-200 hover:bg-blue-50/50 text-zinc-800 justify-start px-4 gap-3 shadow-sm hover:shadow-md rounded-2xl group transition-all">
-                <Link href="/irsaliye">
-                  <div className="w-10 h-10 bg-blue-50 text-blue-600 flex items-center justify-center rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <span className="text-xl">🚚</span>
-                  </div>
-                  <div className="flex flex-col items-start">
-                    <span className="text-sm font-bold tracking-tight">Yeni İrsaliye</span>
-                    <span className="text-[10px] text-zinc-400 font-normal group-hover:text-blue-600/70">Malzeme Girişi</span>
-                  </div>
-                </Link>
-              </Button>
-
-              <Button asChild className="col-span-1 w-full h-16 bg-white border border-zinc-100 hover:border-orange-200 hover:bg-orange-50/50 text-zinc-800 justify-start px-4 gap-3 shadow-sm hover:shadow-md rounded-2xl group transition-all">
-                <Link href="/beton">
-                  <div className="w-10 h-10 bg-orange-50 text-orange-600 flex items-center justify-center rounded-xl group-hover:bg-orange-600 group-hover:text-white transition-colors">
-                    <span className="text-xl">🏗️</span>
-                  </div>
-                  <div className="flex flex-col items-start">
-                    <span className="text-sm font-bold tracking-tight">Beton Döküm</span>
-                    <span className="text-[10px] text-zinc-400 font-normal group-hover:text-orange-600/70">Günlük Takip</span>
-                  </div>
-                </Link>
-              </Button>
-            </div>
-          </div>
-
         </div>
+
+        {/* Widgets Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <WidgetCard delay={0.4} icon={<FileText />} color="purple" label="Cari Yönetim" title="Hesaplar" href="/cari-yonetim" trend="+12%" />
+          <WidgetCard delay={0.5} icon={<Truck />} color="green" label="Şantiye" title="Personel" href="/personeller" badge="Aktif" />
+          <WidgetCard delay={0.6} icon={<TrendingUp />} color="cyan" label="Lojistik" title="İrsaliyeler" href="/irsaliye" />
+          <WidgetCard delay={0.7} icon={<CheckCircle2 />} color="neutral" label="Sistem" title="Ayarlar" href="/ayarlar" />
+        </div>
+
+        {/* Bottom Section */}
+        <Card delay={0.8} className="rounded-[2.5rem] p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-10 opacity-[0.03] rotate-12">
+            <PieChart className="w-64 h-64" />
+          </div>
+          <div className="flex flex-col sm:flex-row justify-between items-center border-b border-border/50 pb-6 mb-8 gap-4 px-2">
+            <div>
+              <h3 className="text-2xl font-black font-heading tracking-tight">Proje Özeti</h3>
+              <p className="text-sm text-muted-foreground font-medium">Genel durum ve ilerleme raporu</p>
+            </div>
+            <div className="flex gap-4">
+              <Button magnetic variant="outline" className="rounded-full px-6">Rapor İndir</Button>
+              <Button magnetic className="rounded-full px-6 shadow-lg shadow-primary/20">Tüm Veriler</Button>
+            </div>
+          </div>
+          <div className="h-64 flex items-center justify-center text-muted-foreground/30 text-sm font-black uppercase tracking-widest border-2 border-dashed border-border/40 rounded-3xl bg-muted/10">
+            İstatistik Grafikleri Yükleniyor...
+          </div>
+        </Card>
       </div>
     </div>
   );
 }
+
+function WidgetCard({ delay, icon, color, label, title, href, trend, badge }: any) {
+  const iconRef = useRef<HTMLDivElement>(null);
+  const colorMap: any = {
+    purple: "border-t-purple-500 text-purple-600 bg-purple-500/10",
+    green: "border-t-green-500 text-green-600 bg-green-500/10",
+    cyan: "border-t-cyan-500 text-cyan-600 bg-cyan-500/10",
+    neutral: "border-t-neutral-500 text-neutral-600 bg-neutral-500/10"
+  };
+
+  const onMouseEnter = () => {
+    if (iconRef.current) {
+      gsap.to(iconRef.current, {
+        y: -10,
+        rotate: 15,
+        scale: 1.2,
+        duration: 0.4,
+        ease: "back.out(2)"
+      });
+    }
+  };
+
+  const onMouseLeave = () => {
+    if (iconRef.current) {
+      gsap.to(iconRef.current, {
+        y: 0,
+        rotate: 0,
+        scale: 1,
+        duration: 0.6,
+        ease: "expo.out"
+      });
+    }
+  };
+
+  return (
+    <Link href={href} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+      <Card delay={delay} interactive className={cn("rounded-3xl p-6 border-t-[6px] group transition-all h-full", colorMap[color])}>
+        <div className="flex justify-between items-start mb-4">
+          <div ref={iconRef} className={cn("p-3 rounded-2xl transition-shadow group-hover:shadow-lg", colorMap[color])}>
+            {icon}
+          </div>
+          {trend && <BadgeTrend value={trend} />}
+          {badge && <div className="text-[10px] font-black bg-green-500/20 text-green-600 px-2.5 py-1 rounded-full uppercase tracking-tighter">{badge}</div>}
+        </div>
+        <div className="text-[10px] text-muted-foreground uppercase font-black tracking-[0.2em] mb-2">{label}</div>
+        <div className="text-2xl font-black text-foreground group-hover:text-primary transition-colors tracking-tighter line-clamp-1">{title}</div>
+      </Card>
+    </Link>
+  );
+}
+
+
+function BadgeTrend({ value }: { value: string }) {
+  const isPositive = value.startsWith('+');
+  return (
+    <div className={cn(
+      "text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5",
+      isPositive ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"
+    )}>
+      {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
+      {value}
+    </div>
+  )
+}
+
+function PlusIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M5 12h14" />
+      <path d="M12 5v14" />
+    </svg>
+  )
+}
+

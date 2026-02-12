@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import {
     LayoutDashboard,
     Activity,
-    Truck,
     FileText,
     Settings,
     Briefcase,
@@ -18,143 +17,225 @@ import {
     ChevronLeft,
     ChevronRight,
     Hammer,
-    BarChart3,
     Package,
     Calendar,
-    Receipt
+    Receipt,
+    Building2,
+    Truck
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { motion, AnimatePresence } from "framer-motion";
+
+import { useRef } from "react";
+import gsap from "gsap";
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+    const sidebarRef = useRef<HTMLDivElement>(null);
 
+    // Desktop/Mobile detection
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+
+        // GSAP Entry Animation (Safe & Explicit)
+        if (sidebarRef.current && !onNavigate) {
+            gsap.fromTo(sidebarRef.current,
+                { x: -100, opacity: 0 },
+                {
+                    x: 0,
+                    opacity: 1,
+                    duration: 1.5,
+                    ease: "expo.out",
+                    delay: 0.3,
+                    clearProps: "all" // Bu, animasyon bittiğinde GSAP'in stile müdahalesini temizler
+                }
+            );
+        }
+
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []); // Bağımlılığı boşaltarak sadece mount anında çalışmasını garanti ediyoruz
+
+    // Floating Glass Sidebar Design
     return (
-        <div
+        <motion.div
+            ref={sidebarRef}
+            initial={false}
+            animate={{
+                width: collapsed ? "5rem" : "18rem",
+            }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className={cn(
-                "flex flex-col h-full bg-white text-zinc-600 font-sans shadow-xl transition-all duration-300 ease-in-out border-r border-zinc-100",
-                // Mobile'da her zaman tam genişlik, desktop'ta responsive
-                "w-full md:w-auto",
-                !onNavigate && "hidden md:flex", // Masaüstü için varsayılan stil
-                collapsed ? "md:w-20" : "md:w-72"
+                "group flex flex-col bg-background/60 backdrop-blur-xl shadow-2xl z-30 transition-all duration-300",
+                // Desktop Styles
+                !onNavigate && "hidden md:flex h-[calc(100vh-2rem)] m-4 rounded-[2rem] border border-white/20 dark:border-white/5 sticky top-4 overflow-visible",
+                // Mobile Styles (Reset desktop specific styles)
+                onNavigate && "flex h-full w-full border-none m-0 rounded-none bg-background/95"
             )}
         >
-
-            {/* Loft 777 Brand Area */}
+            {/* Brand Area */}
             <div className={cn(
-                "border-b border-zinc-100 bg-white transition-all duration-300",
-                collapsed ? "p-4 flex justify-center" : "p-8 pb-6"
+                "relative flex items-center justify-between p-6 mb-2",
+                collapsed ? "justify-center px-2" : "justify-start"
             )}>
-                <Link href="/" onClick={onNavigate} className="flex flex-col gap-1 group items-center lg:items-start cursor-pointer hover:opacity-80 transition-opacity">
-                    <div className={cn(
-                        "bg-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/20 transition-all duration-300",
-                        collapsed ? "w-10 h-10 mb-0" : "w-12 h-12 mb-4 group-hover:scale-110 group-hover:rotate-3"
-                    )}>
-                        <Building className="text-white w-6 h-6" strokeWidth={1.5} />
+                <Link href="/" onClick={onNavigate} className="flex items-center gap-3 overflow-hidden group/brand">
+                    <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg shadow-orange-500/20 text-white shrink-0 group-hover/brand:scale-110 transition-transform duration-300">
+                        <Building2 className="w-5 h-5" />
+                        <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/20" />
                     </div>
 
-                    {!collapsed && (
-                        <div className="animate-in fade-in duration-300">
-                            <h1 className="font-bold text-2xl text-zinc-800 tracking-tight leading-none whitespace-nowrap">LOFT 777</h1>
-                            <p className="text-[10px] text-zinc-400 font-bold tracking-[0.2em] uppercase mt-1 pl-0.5 whitespace-nowrap">CAMSAN&KOPARAN</p>
-                        </div>
-                    )}
+                    <AnimatePresence>
+                        {!collapsed && (
+                            <motion.div
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -10 }}
+                                className="flex flex-col min-w-[120px]"
+                            >
+                                <span className="font-heading font-black text-xl leading-none tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">LOFT 777</span>
+                                <span className="text-[9px] font-bold text-muted-foreground tracking-[0.2em] uppercase mt-1">Saha Yönetimi</span>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </Link>
+
+                {/* Collapse Toggle */}
+                {!isMobile && !collapsed && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setCollapsed(true)}
+                        className="h-6 w-6 text-muted-foreground hover:bg-white/50 dark:hover:bg-white/10 rounded-full absolute -right-3 top-8 border border-white/20 shadow-sm bg-background/50 backdrop-blur-md hidden group-hover:flex transition-all hover:scale-110"
+                    >
+                        <ChevronLeft className="w-3 h-3" />
+                    </Button>
+                )}
             </div>
 
-            {/* Collapse Toggle Button (Desktop Only) */}
-            <div className="hidden md:flex justify-end px-2 py-2">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setCollapsed(!collapsed)}
-                    className="h-6 w-6 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"
-                >
-                    {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-                </Button>
+            {/* Toggle when collapsed (Centrally located) */}
+            {collapsed && !isMobile && (
+                <div className="flex justify-center mb-6">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setCollapsed(false)}
+                        className="h-6 w-6 text-muted-foreground hover:bg-white/50 dark:hover:bg-white/10 rounded-full border border-white/20"
+                    >
+                        <ChevronRight className="w-4 h-4" />
+                    </Button>
+                </div>
+            )}
+
+            {/* Navigation Items */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 space-y-6 scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-muted/20 hover:scrollbar-thumb-muted/50 transition-colors">
+
+                <NavGroup label="YÖNETİM" collapsed={collapsed}>
+                    <NavItem href="/" icon={<LayoutDashboard />} label="Kontrol Paneli" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
+                    <NavItem href="/cari-yonetim" icon={<FileText />} label="Cari Hesaplar" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
+                    <NavItem href="/ceks" icon={<Calendar />} label="Çek Takvimi" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
+                    <NavItem href="/faturalar" icon={<Receipt />} label="Faturalar" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
+                    <NavItem href="/siparisler" icon={<Package />} label="Siparişler" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
+                </NavGroup>
+
+                <NavGroup label="SAHA VE ÜRETİM" collapsed={collapsed}>
+                    <NavItem href="/demir-baglanti" icon={<Activity />} label="Demir Bağlantı" pathname={pathname} collapsed={collapsed} onClick={onNavigate} activeColor="text-orange-500" />
+                    <NavItem href="/beton" icon={<Building />} label="Beton Dökümü" pathname={pathname} collapsed={collapsed} onClick={onNavigate} activeColor="text-blue-500" />
+                    <NavItem href="/makine-calismalari" icon={<Hammer />} label="Makine Parkı" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
+                    <NavItem href="/irsaliye" icon={<Truck />} label="İrsaliye Girişi" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
+                </NavGroup>
+
+                <NavGroup label="KURUMSAL" collapsed={collapsed}>
+                    <NavItem href="/personeller" icon={<Users />} label="Ekip ve İK" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
+                    <NavItem href="/tedarikciler" icon={<Briefcase />} label="Tedarikçiler" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
+                </NavGroup>
+
             </div>
 
-            {/* Custom Navigation */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3 space-y-1">
-
-                {!collapsed && <div className="px-4 mb-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest animate-in fade-in slide-in-from-left-2 duration-300 whitespace-nowrap">Yönetim Masası</div>}
-
-                <NavItem href="/" icon={<LayoutDashboard />} label="Kontrol Paneli" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
-                <NavItem href="/cari-yonetim" icon={<FileText />} label="Cari Yönetim (2026)" pathname={pathname} collapsed={collapsed} highlight onClick={onNavigate} />
-                <NavItem href="/ceks" icon={<Calendar />} label="Çek Takip Takvimi" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
-                <NavItem href="/faturalar" icon={<Receipt />} label="Faturalar" pathname={pathname} collapsed={collapsed} highlight onClick={onNavigate} />
-                <NavItem href="/fiyat-karsilastirma" icon={<BarChart3 />} label="Fiyat Karşılaştırma" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
-                <NavItem href="/siparisler" icon={<Package />} label="Siparişler" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
-
-                {!collapsed && <div className="px-4 mt-8 mb-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest animate-in fade-in slide-in-from-left-2 duration-300 whitespace-nowrap">Saha Operasyon</div>}
-
-                <NavItem href="/demir-baglanti" icon={<Activity />} label="Demir Bağlantı" pathname={pathname} collapsed={collapsed} highlight onClick={onNavigate} />
-                <NavItem href="/irsaliye/list" icon={<FileText />} label="İrsaliye Kayıtları" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
-                <NavItem href="/makine-calismalari" icon={<Hammer />} label="Makine Çalışmaları" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
-
-                {!collapsed && <div className="px-4 mt-8 mb-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest animate-in fade-in slide-in-from-left-2 duration-300 whitespace-nowrap">Kurumsal</div>}
-
-                <NavItem href="/tedarikciler" icon={<Briefcase />} label="Tedarikçiler" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
-                <NavItem href="/personeller" icon={<Users />} label="Ekip & Personel" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
-
+            {/* Footer / Settings */}
+            <div className="p-3 mt-auto border-t border-white/10 dark:border-white/5 mx-3 mb-2">
+                <NavItem href="/ayarlar" icon={<Settings />} label="Sistem Ayarları" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
             </div>
+        </motion.div>
+    );
+}
 
-            {/* Footer */}
-            <div className="p-4 border-t border-zinc-100 bg-zinc-50/50">
-                <Button variant="ghost" className={cn(
-                    "w-full text-zinc-500 hover:text-zinc-800 hover:bg-white border border-transparent hover:border-zinc-200 hover:shadow-sm rounded-xl h-12 transition-all duration-300",
-                    collapsed ? "justify-center px-0" : "justify-start pl-4"
-                )}>
-                    <Settings className={cn("h-5 w-5", collapsed ? "mr-0" : "mr-3")} />
-                    {!collapsed && <span>Ayarlar</span>}
-                </Button>
-            </div>
+function NavGroup({ label, collapsed, children }: { label: string, collapsed: boolean, children: React.ReactNode }) {
+    if (collapsed) return <div className="space-y-1">{children}</div>;
 
+    return (
+        <div className="space-y-1 animate-in fade-in slide-in-from-left-2 duration-500">
+            <h4 className="px-4 text-[10px] font-black text-muted-foreground/50 uppercase tracking-[0.2em] mb-3 select-none">
+                {label}
+            </h4>
+            {children}
         </div>
     );
 }
 
-// Helper specific for this design
-function NavItem({ href, icon, label, pathname, highlight = false, collapsed = false, onClick }: { href: string, icon: any, label: string, pathname: string, highlight?: boolean, collapsed?: boolean, onClick?: () => void }) {
+function NavItem({
+    href,
+    icon,
+    label,
+    pathname,
+    collapsed,
+    onClick,
+    activeColor
+}: {
+    href: string,
+    icon: any,
+    label: string,
+    pathname: string,
+    collapsed: boolean,
+    onClick?: () => void,
+    activeColor?: string
+}) {
     const isActive = pathname === href || (href !== '/' && pathname.startsWith(href));
 
     return (
-        <div className="relative group p-0 py-0.5" title={collapsed ? label : undefined}>
-            <Button
-                asChild
-                variant="ghost"
-                className={cn(
-                    "w-full h-12 rounded-xl transition-all duration-300 border border-transparent",
-                    collapsed ? "justify-center px-0 pl-0" : "justify-start pl-4",
-                    isActive
-                        ? (collapsed ? "bg-orange-50 text-orange-600" : "bg-orange-50 text-orange-700 font-semibold shadow-sm border-orange-100")
-                        : (collapsed ? "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50" : "text-zinc-500 hover:text-zinc-900 hover:bg-white hover:shadow-sm hover:border-zinc-100"),
-                    highlight && !isActive && "text-orange-600/80 hover:text-orange-600 hover:bg-orange-50/50"
-                )}
-            >
-                <Link href={href} onClick={onClick}>
-                    {/* Icon styling */}
-                    <span className={cn(
-                        "transition-all duration-300 flex items-center justify-center", // Added flex items-center for better icon alignment
-                        isActive ? "text-orange-500 scale-110" : "text-zinc-400 group-hover:text-zinc-600",
-                        collapsed ? "mr-0" : "mr-3"
-                    )}>
-                        {icon}
-                    </span>
+        <Link
+            href={href}
+            onClick={onClick}
+            className={cn(
+                "relative flex items-center py-3 px-3.5 rounded-2xl transition-all duration-300 group overflow-hidden outline-none",
+                isActive
+                    ? "bg-white/80 dark:bg-white/5 shadow-md shadow-black/5 ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-sm"
+                    : "text-muted-foreground hover:bg-white/40 dark:hover:bg-white/5 hover:text-foreground"
+            )}
+        >
+            {/* Active Indicator Glow */}
+            {isActive && (
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-primary to-transparent opacity-50 rounded-r-full" />
+            )}
 
-                    {!collapsed && (
-                        <span className="text-sm tracking-wide duration-300 whitespace-nowrap overflow-hidden text-ellipsis">
-                            {label}
-                        </span>
-                    )}
+            <span className={cn(
+                "flex-shrink-0 transition-all duration-300 relative z-10",
+                isActive
+                    ? cn("scale-110 drop-shadow-sm", activeColor || "text-primary")
+                    : "group-hover:scale-105 group-hover:text-foreground",
+                collapsed ? "mx-auto" : "mr-3"
+            )}>
+                {icon && <icon.type {...icon.props} size={20} strokeWidth={isActive ? 2.5 : 2} />}
+            </span>
 
-                    {/* Active Dot for minimal look */}
-                    {!collapsed && isActive && (
-                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-orange-500 mr-2 shadow-sm shadow-orange-200"></div>
-                    )}
-                </Link>
-            </Button>
-        </div>
+            {!collapsed && (
+                <span className={cn(
+                    "truncate text-sm font-medium tracking-wide transition-colors duration-200",
+                    isActive ? "text-foreground font-bold" : ""
+                )}>
+                    {label}
+                </span>
+            )}
+
+            {/* Hover Tooltip for Collapsed State */}
+            {collapsed && (
+                <div className="absolute left-14 top-1/2 -translate-y-1/2 bg-popover text-popover-foreground text-xs font-bold px-3 py-1.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-all duration-200 translate-x-2 group-hover:translate-x-0 border border-border/50 backdrop-blur-md">
+                    {label}
+                </div>
+            )}
+        </Link>
     )
 }
 
@@ -164,11 +245,12 @@ export function MobileSidebar() {
     return (
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden -ml-2 text-zinc-600 hover:bg-zinc-100 rounded-full w-10 h-10">
+                <Button variant="ghost" size="icon" className="md:hidden">
                     <Menu className="w-6 h-6" />
+                    <span className="sr-only">Toggle Menu</span>
                 </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 bg-white w-80 border-r border-zinc-100">
+            <SheetContent side="left" className="p-0 border-r-0 bg-transparent shadow-none w-[300px]">
                 <Sidebar onNavigate={() => setOpen(false)} />
             </SheetContent>
         </Sheet>

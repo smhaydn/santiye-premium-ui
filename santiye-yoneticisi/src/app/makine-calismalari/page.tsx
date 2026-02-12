@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Calendar, MapPin, User, Clock, CheckCircle2, Circle, Wallet } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { Search, Calendar, MapPin, Clock, Wallet, Truck, RefreshCw, Filter, Construction } from "lucide-react";
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function MachineOperationsPage() {
     const [logs, setLogs] = useState<any[]>([]);
@@ -66,58 +68,6 @@ export default function MachineOperationsPage() {
     const totalHours = filteredLogs.reduce((sum, log) => sum + (Number(log.hours_worked) || 0), 0);
     const totalAmount = filteredLogs.reduce((sum, log) => sum + (Number(log.transaction?.amount) || 0), 0);
 
-    const fixMissingLogs = async () => {
-        const toastId = toast.loading('Kayıtlar kontrol ediliyor...');
-        try {
-            // 1. Get candidate transactions
-            const { data: transactions } = await supabase
-                .from('site_transactions')
-                .select('id, category, transaction_date, quantity, district, description')
-                .in('category', ['Jcb', 'Vinç', 'Kamyon', 'Mini Kepçe', 'Ekskavatör', 'İş Makinesi', 'Makine']);
-
-            if (!transactions) throw new Error('İşlem listesi alınamadı');
-
-            let fixedCount = 0;
-
-            for (const t of transactions) {
-                // 2. Check overlap
-                const { data: existing } = await supabase
-                    .from('machine_logs')
-                    .select('id')
-                    .eq('transaction_id', t.id)
-                    .maybeSingle();
-
-                if (!existing) {
-                    // Create minimal log using Secure RPC
-                    const rpcPayload = {
-                        p_transaction_id: t.id,
-                        p_machine_name: t.category,
-                        p_operator_name: null,
-                        p_work_date: t.transaction_date,
-                        p_hours_worked: Number(t.quantity) || 0,
-                        p_location_detail: t.district || 'Şantiye',
-                        p_notes: t.description
-                    };
-
-                    const { error } = await supabase.rpc('upsert_machine_log', rpcPayload);
-
-                    if (!error) fixedCount++;
-                }
-            }
-
-            if (fixedCount > 0) {
-                toast.success(`${fixedCount} eksik kayıt onarıldı!`, { id: toastId });
-                fetchLogs(); // Refresh UI
-            } else {
-                toast.success('Tüm kayıtlar güncel.', { id: toastId });
-            }
-
-        } catch (error) {
-            console.error(error);
-            toast.error('Onarım sırasında hata oluştu', { id: toastId });
-        }
-    };
-
     const handleTogglePaymentStatus = async (id: string, currentStatus: string) => {
         const nextStatus = {
             'Ödenmedi': 'Ödendi',
@@ -148,142 +98,181 @@ export default function MachineOperationsPage() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-[#f8f9fa]">
-            <PageHeader title="Makine Çalışmaları" subtitle="SAHA OPERASYON TAKİBİ" />
+        <div className="flex flex-col h-full bg-background font-sans">
+            <PageHeader title="Makine Parkı & Çalışmalar" subtitle="SAHA OPERASYON VE HİZMET TAKİBİ" backLink="/">
+                <Button variant="outline" size="sm" onClick={fetchLogs} className="gap-2 border-primary/20 hover:bg-primary/5 text-primary">
+                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    Yenile
+                </Button>
+            </PageHeader>
 
-            <div className="flex-1 p-4 overflow-hidden flex flex-col gap-4">
+            <div className="flex-1 p-4 md:p-6 overflow-hidden flex flex-col gap-6">
 
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card className="p-4 flex items-center gap-4 border-l-4 border-l-orange-500">
-                        <div className="p-3 bg-orange-100 rounded-full">
-                            <Clock className="w-6 h-6 text-orange-600" />
+                    <Card className="glass-card p-6 flex items-center gap-4 relative overflow-hidden group">
+                        <div className="absolute right-0 top-0 h-full w-1 bg-gradient-to-b from-orange-500 to-orange-600/50" />
+                        <div className="p-4 bg-orange-500/10 rounded-full group-hover:scale-110 transition-transform duration-300">
+                            <Clock className="w-8 h-8 text-orange-500" />
                         </div>
                         <div>
-                            <div className="text-sm text-neutral-500 font-medium">Toplam Çalışma</div>
-                            <div className="text-2xl font-bold">{totalHours.toLocaleString('tr-TR')} Saat</div>
+                            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Toplam Çalışma</div>
+                            <div className="text-3xl font-bold text-foreground mt-1">{totalHours.toLocaleString('tr-TR')} <span className="text-sm font-normal text-muted-foreground">Saat</span></div>
                         </div>
                     </Card>
-                    <Card className="p-4 flex items-center gap-4 border-l-4 border-l-blue-500">
-                        <div className="p-3 bg-blue-100 rounded-full">
-                            <Truck className="w-6 h-6 text-blue-600" />
+
+                    <Card className="glass-card p-6 flex items-center gap-4 relative overflow-hidden group">
+                        <div className="absolute right-0 top-0 h-full w-1 bg-gradient-to-b from-blue-500 to-blue-600/50" />
+                        <div className="p-4 bg-blue-500/10 rounded-full group-hover:scale-110 transition-transform duration-300">
+                            <Truck className="w-8 h-8 text-blue-500" />
                         </div>
                         <div>
-                            <div className="text-sm text-neutral-500 font-medium">Kayıtlı İşlem</div>
-                            <div className="text-2xl font-bold">{filteredLogs.length} Adet</div>
+                            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Kayıtlı İşlem</div>
+                            <div className="text-3xl font-bold text-foreground mt-1">{filteredLogs.length} <span className="text-sm font-normal text-muted-foreground">Adet</span></div>
                         </div>
                     </Card>
-                    <Card className="p-4 flex items-center gap-4 border-l-4 border-l-green-500">
-                        <div className="p-3 bg-green-100 rounded-full">
-                            <Wallet className="w-6 h-6 text-green-600" />
+
+                    <Card className="glass-card p-6 flex items-center gap-4 relative overflow-hidden group">
+                        <div className="absolute right-0 top-0 h-full w-1 bg-gradient-to-b from-green-500 to-green-600/50" />
+                        <div className="p-4 bg-green-500/10 rounded-full group-hover:scale-110 transition-transform duration-300">
+                            <Wallet className="w-8 h-8 text-green-500" />
                         </div>
                         <div>
-                            <div className="text-sm text-neutral-500 font-medium">Toplam Tutar</div>
-                            <div className="text-2xl font-bold">{totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</div>
+                            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Toplam Tutar</div>
+                            <div className="text-3xl font-bold text-foreground mt-1">{totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} <span className="text-sm font-normal text-muted-foreground">TL</span></div>
                         </div>
                     </Card>
                 </div>
 
-                {/* Filter Bar */}
-                <div className="flex items-center gap-2 bg-white p-2 rounded border shadow-sm w-full md:w-96">
-                    <Search className="w-4 h-4 text-gray-400 ml-2" />
-                    <Input
-                        placeholder="Makine, Operatör, Firma veya Konum Ara..."
-                        className="border-none h-8 focus-visible:ring-0"
-                        value={filterText}
-                        onChange={(e) => setFilterText(e.target.value)}
-                    />
+                {/* Filter & Toolbar */}
+                <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-muted/20 p-2 rounded-xl border border-border/40">
+                    <div className="relative w-full md:w-96 group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                        <Input
+                            placeholder="Makine, Operatör veya Firma Ara..."
+                            className="pl-9 bg-background/50 border-transparent focus:border-primary/30 h-10 transition-all font-medium"
+                            value={filterText}
+                            onChange={(e) => setFilterText(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" className="hidden md:flex gap-2 text-muted-foreground">
+                            <Filter className="w-4 h-4" /> Filtrele
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Data Table */}
-                <Card className="flex-1 overflow-auto border-neutral-200 shadow-sm rounded-sm bg-white">
-                    <Table>
-                        <TableHeader className="bg-neutral-100 sticky top-0 z-10 shadow-sm">
-                            <TableRow>
-                                <TableHead className="font-bold">TARİH</TableHead>
-                                <TableHead className="font-bold">MAKİNE / PLAKA</TableHead>
-                                <TableHead className="font-bold">KONUM</TableHead>
-                                {/* Removed Start-End Column */}
-                                <TableHead className="text-right font-bold bg-orange-50 text-orange-700 border-x border-orange-100">MİKTAR / SÜRE</TableHead>
-                                <TableHead className="font-bold">FİRMA / TEDARİKÇİ</TableHead>
-                                <TableHead className="font-bold">AÇIKLAMA</TableHead>
-                                <TableHead className="text-right font-bold">TUTAR</TableHead>
-                                <TableHead className="text-center font-bold">DURUM</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {loading ? (
-                                <TableRow>
-                                    <TableCell colSpan={9} className="text-center h-24">Yükleniyor...</TableCell>
+                <Card className="flex-1 overflow-hidden glass-card border border-border/50 shadow-xl rounded-xl flex flex-col">
+                    <div className="overflow-auto flex-1 custom-scrollbar">
+                        <Table>
+                            <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur-md">
+                                <TableRow className="border-b border-border/50 hover:bg-transparent">
+                                    <TableHead className="font-bold text-xs text-muted-foreground uppercase tracking-wider w-[120px]">TARİH</TableHead>
+                                    <TableHead className="font-bold text-xs text-muted-foreground uppercase tracking-wider">MAKİNE & PLAKA</TableHead>
+                                    <TableHead className="font-bold text-xs text-muted-foreground uppercase tracking-wider">KONUM</TableHead>
+                                    <TableHead className="text-right font-bold text-xs uppercase tracking-wider text-orange-600 bg-orange-500/5">SÜRE / MİKTAR</TableHead>
+                                    <TableHead className="font-bold text-xs text-muted-foreground uppercase tracking-wider">FİRMA / TEDARİKÇİ</TableHead>
+                                    <TableHead className="font-bold text-xs text-muted-foreground uppercase tracking-wider">AÇIKLAMA</TableHead>
+                                    <TableHead className="text-right font-bold text-xs text-muted-foreground uppercase tracking-wider">TUTAR</TableHead>
+                                    <TableHead className="text-center font-bold text-xs text-muted-foreground uppercase tracking-wider w-[100px]">DURUM</TableHead>
                                 </TableRow>
-                            ) : filteredLogs.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={9} className="text-center h-24 text-neutral-500">Kayıt bulunamadı.</TableCell>
-                                </TableRow>
-                            ) : filteredLogs.map((log) => (
-                                <TableRow key={log.id} className="hover:bg-neutral-50 h-10 border-b border-neutral-100">
-                                    <TableCell className="font-mono text-xs text-neutral-600">
-                                        <div className="flex items-center gap-2">
-                                            <Calendar className="w-3 h-3 text-neutral-400" />
-                                            {new Date(log.work_date).toLocaleDateString('tr-TR')}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="font-medium text-sm text-neutral-800">{log.machine_name}</TableCell>
-                                    <TableCell className="text-sm text-neutral-600">
-                                        <div className="flex items-center gap-2">
-                                            <MapPin className="w-3 h-3 text-neutral-400" />
-                                            {log.location_detail || '-'}
-                                        </div>
-                                    </TableCell>
-                                    {/* Removed Start-End Cell */}
-                                    <TableCell className="text-right font-mono font-bold text-orange-600 bg-orange-50/50 border-x border-orange-100/50">
-                                        {Number(log.hours_worked).toLocaleString('tr-TR')} <span className="text-[10px] text-orange-400 font-normal ml-1">{log.transaction?.unit}</span>
-                                    </TableCell>
-                                    <TableCell className="text-xs text-neutral-600">
-                                        <div className="font-bold text-neutral-700">{log.transaction?.firm_name}</div>
-                                        <div className="text-neutral-500">{log.transaction?.supplier_name}</div>
-                                    </TableCell>
-                                    <TableCell className="text-xs text-neutral-500 max-w-[200px] truncate" title={log.notes || log.transaction?.description}>
-                                        {log.notes || log.transaction?.description || '-'}
-                                    </TableCell>
-                                    <TableCell className="text-right font-mono text-xs text-neutral-600">
-                                        {log.transaction?.amount ? Number(log.transaction.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' TL' : '-'}
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <Badge
-                                            variant="outline"
-                                            className={`cursor-pointer select-none text-[10px] px-2 w-[80px] justify-center ${log.transaction?.payment_status === 'Ödendi' ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200' :
-                                                log.transaction?.payment_status === 'Kısmi' ? 'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200' :
-                                                    'bg-red-50 text-red-600 border-red-100 hover:bg-red-100'
-                                                }`}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleTogglePaymentStatus(log.transaction?.id || log.id, log.transaction?.payment_status || 'Ödenmedi');
-                                            }}
-                                        >
-                                            {log.transaction?.payment_status || 'Ödenmedi'}
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={8} className="text-center h-32">
+                                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                                <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                                <span className="text-xs">Veriler Yükleniyor...</span>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : filteredLogs.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={8} className="text-center h-32 text-muted-foreground">
+                                            <div className="flex flex-col items-center gap-2 opacity-50">
+                                                <Construction className="w-8 h-8" />
+                                                <span>Kayıt bulunamadı.</span>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    <AnimatePresence>
+                                        {filteredLogs.map((log) => (
+                                            <motion.tr
+                                                key={log.id}
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                className="group hover:bg-muted/30 border-b border-border/40 transition-colors h-12"
+                                            >
+                                                <TableCell className="py-2">
+                                                    <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded w-fit">
+                                                        <Calendar className="w-3 h-3" />
+                                                        {new Date(log.work_date).toLocaleDateString('tr-TR')}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="py-2">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-semibold text-foreground">{log.machine_name}</span>
+                                                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                            <User className="w-3 h-3" /> {log.operator_name}
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="py-2 text-xs text-muted-foreground">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <MapPin className="w-3 h-3 text-primary/50" />
+                                                        {log.location_detail || '-'}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="py-2 text-right bg-orange-500/5 group-hover:bg-orange-500/10 transition-colors border-x border-dashed border-orange-500/10">
+                                                    <div className="font-mono font-bold text-orange-600">
+                                                        {Number(log.hours_worked).toLocaleString('tr-TR')} <span className="text-[10px] text-orange-400 font-normal">{log.transaction?.unit}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="py-2">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-bold text-foreground">{log.transaction?.firm_name}</span>
+                                                        <span className="text-[10px] text-muted-foreground">{log.transaction?.supplier_name}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="py-2">
+                                                    <div className="text-xs text-muted-foreground max-w-[200px] truncate" title={log.notes || log.transaction?.description}>
+                                                        {log.notes || log.transaction?.description || '-'}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="py-2 text-right">
+                                                    <span className="font-mono text-xs font-medium text-foreground">
+                                                        {log.transaction?.amount ? Number(log.transaction.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺' : '-'}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell className="py-2 text-center">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`cursor-pointer select-none text-[9px] px-2 py-0 h-5 w-[70px] justify-center transition-all ${log.transaction?.payment_status === 'Ödendi'
+                                                                ? 'bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20'
+                                                                : log.transaction?.payment_status === 'Kısmi'
+                                                                    ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20 hover:bg-yellow-500/20'
+                                                                    : 'bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20'
+                                                            }`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleTogglePaymentStatus(log.transaction?.id || log.id, log.transaction?.payment_status || 'Ödenmedi');
+                                                        }}
+                                                    >
+                                                        {log.transaction?.payment_status || 'Ödenmedi'}
+                                                    </Badge>
+                                                </TableCell>
+                                            </motion.tr>
+                                        ))}
+                                    </AnimatePresence>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </Card>
             </div>
         </div>
     );
-}
-
-function Truck({ className }: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <polygon points="1 14 1 20 8 20 8 14" />
-            <line x1="14" y1="14" x2="14" y2="20" />
-            <line x1="8" y1="20" x2="14" y2="20" />
-            <line x1="17" y1="14" x2="17" y2="20" />
-            <line x1="20" y1="14" x2="20" y2="20" />
-            <line x1="17" y1="20" x2="23" y2="20" />
-            <path d="M1 14h23v-5h-2l-3-6H6l-3 6H1Z" />
-        </svg>
-    )
 }

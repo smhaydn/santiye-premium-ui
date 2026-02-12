@@ -1,8 +1,6 @@
-
 'use client';
 
-
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,65 +9,52 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, User, Building2, Briefcase, FileText, Calendar, CheckSquare, MapPin, ChevronDown, ChevronUp, Info, LayoutGrid, FilePlus, List } from "lucide-react";
+import { User, Building2, Briefcase, FileText, CheckCircle2, ChevronRight, ChevronLeft, Save, Shield, MapPin, Calendar, Heart, GraduationCap, Users } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import Link from "next/link";
+import gsap from 'gsap';
 import { cn } from "@/lib/utils";
+import { toast } from 'sonner';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function AddPersonnelPage() {
+export default function PersonnelWizardPage() {
     const router = useRouter();
     const [step, setStep] = useState(1);
-
     const [loading, setLoading] = useState(false);
-    const [showExtraInfo, setShowExtraInfo] = useState(false);
+    const stepContainerRef = useRef<HTMLDivElement>(null);
 
     // Form State
     const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        phone: '',
-        role: '',
-        company: '',
-        team: '',
-        tc_no: '',
-        is_active: true,
-        is_company_official: false,
-        permissions: {},
-        // New Fields
-        birth_place: '',
-        birth_date: '',
-        gender: '',
-        start_date: '',
-        iban: '',
-        sgk_no: '',
-        marital_status: '',
-        child_count: 0,
-        blood_type: '',
-        mother_name: '',
-        father_name: '',
-        registry_place: '',
-        education_status: '',
-        military_status: '',
-        reference_person: '',
-        approval_person: '',
-        country: '',
-        city: '',
-        address: '',
-        project_permissions: {},
-        document_template: '' // 'saved' | 'new'
+        name: '', email: '', phone: '', role: '', company: 'Loft 777', team: '',
+        tc_no: '', is_active: true, is_company_official: false,
+        birth_place: '', birth_date: '', gender: '', start_date: '',
+        iban: '', sgk_no: '', marital_status: '', child_count: 0,
+        blood_type: '', address: '', country: 'Türkiye', city: '',
+        permissions: {}, project_permissions: {}
     });
 
-    // UI State for Step 3
     const [selectedProject, setSelectedProject] = useState<string>("");
 
-    const steps = [
-        { id: 1, title: 'Kullanıcı Bilgileri', icon: User },
-        ...(formData.is_active ? [
-            { id: 2, title: 'Şirket Yetkileri', icon: Building2 },
-            { id: 3, title: 'Proje Yetkileri', icon: Briefcase },
-        ] : []),
-        { id: 4, title: 'Doküman', icon: FileText },
-    ];
+    // Step Transition Animation
+    useEffect(() => {
+        if (stepContainerRef.current) {
+            gsap.fromTo(stepContainerRef.current,
+                { x: 30, opacity: 0 },
+                { x: 0, opacity: 1, duration: 0.6, ease: "expo.out" }
+            );
+        }
+    }, [step]);
+
+    const totalSteps = formData.is_active ? 4 : 2;
+
+    const nextStep = () => {
+        if (step === 1 && (!formData.name || (formData.is_active && !formData.email))) {
+            toast.error("Lütfen zorunlu alanları (Ad Soyad, Email) doldurunuz.");
+            return;
+        }
+        setStep(prev => Math.min(prev + 1, totalSteps));
+    };
+
+    const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
 
     const handleSubmit = async () => {
         setLoading(true);
@@ -79,610 +64,294 @@ export default function AddPersonnelPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
-
             const result = await res.json();
             if (result.success) {
-                alert("✅ Kullanıcı Başarıyla Eklendi!");
+                toast.success("✅ Personel başarıyla kaydedildi.");
                 router.push('/personeller');
             } else {
-                alert("Hata: " + result.error);
+                toast.error("Hata: " + result.error);
             }
         } catch (error) {
-            alert("Sunucu hatası");
+            toast.error("Sunucu hatası");
         } finally {
             setLoading(false);
         }
     };
 
+    const setCompanyPermission = (val: string) => {
+        let perms = {};
+        if (val === 'admin') perms = { b: 'full', p: 'full', t: 'full', m: 'full', e: 'full', s: 'full', d: 'full', c: 'full' };
+        else if (val === 'saha') perms = { b: 'none', p: 'none', t: 'view', m: 'full', e: 'edit', s: 'full', d: 'view', c: 'none' };
+        setFormData({ ...formData, permissions: perms });
+    };
+
     return (
-        <div className="flex flex-col h-full bg-[#f8f9fa]">
-            <PageHeader title="Yeni Kullanıcı Ekle" backLink="/personeller" />
+        <div className="w-full max-w-5xl mx-auto space-y-6 font-sans pb-32 px-4">
+            <PageHeader
+                title="Yeni Personel Kaydı"
+                backLink="/personeller"
+                subtitle={`${step}. ADIM: ${step === 1 ? 'KİMLİK VE ROL' :
+                        step === 2 ? 'KİŞİSEL DETAYLAR' :
+                            step === 3 ? 'YETKİ TANIMLARI' : 'ONAY VE BELGE'
+                    }`}
+            />
 
-            <div className="flex flex-1 overflow-hidden">
-                {/* Left Steps Sidebar */}
-                <div className="w-64 bg-white border-r p-6 space-y-6 hidden md:block">
-                    {steps.map((s) => (
-                        <div
-                            key={s.id}
-                            className={cn(
-                                "flex items-center gap-3 p-2 rounded cursor-pointer transition-colors",
-                                step === s.id ? "text-neutral-800 font-semibold" : "text-neutral-400"
-                            )}
-                            onClick={() => setStep(s.id)}
-                        >
-                            <div className={cn(
-                                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2",
-                                step === s.id ? "bg-neutral-800 text-white border-neutral-800" : "bg-white border-neutral-300"
-                            )}>
-                                {s.id}
-                            </div>
-                            <span className="text-sm">{s.title}</span>
+            {/* Steps Progress */}
+            <div className="flex items-center justify-between px-16 mb-12 relative">
+                <div className="absolute top-1/2 left-16 right-16 h-1 bg-border/40 -translate-y-1/2 z-0 rounded-full" />
+                <div
+                    className="absolute top-1/2 left-16 h-1 bg-primary -translate-y-1/2 z-1 transition-all duration-700 ease-in-out rounded-full shadow-[0_0_15px_rgba(var(--primary),0.4)]"
+                    style={{ width: `calc(${(step - 1) / (totalSteps - 1)} * (100% - 8rem))` }}
+                />
+
+                {Array.from({ length: totalSteps }).map((_, i) => (
+                    <div
+                        key={i + 1}
+                        className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center border-4 transition-all duration-500 ${step >= (i + 1) ? 'bg-primary border-primary text-white scale-110 shadow-xl shadow-primary/20' : 'bg-background border-border text-muted-foreground'
+                            }`}
+                    >
+                        {step > (i + 1) ? <CheckCircle2 className="w-7 h-7" /> : <span className="text-base font-black">{i + 1}</span>}
+                    </div>
+                ))}
+            </div>
+
+            <Card className="glass-card shadow-2xl rounded-[3rem] overflow-hidden border-none min-h-[600px] flex flex-col relative">
+                <CardHeader className="p-8 pb-4 border-b border-border/30 bg-muted/5">
+                    <div className="flex items-center gap-5">
+                        <div className={`p-4 rounded-2xl transition-all duration-500 shadow-inner ${step === 1 ? 'bg-primary/10 text-primary' : step === 2 ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'
+                            }`}>
+                            {step === 1 ? <User className="w-7 h-7" /> : step === 2 ? <Briefcase className="w-7 h-7" /> : <Shield className="w-7 h-7" />}
                         </div>
-                    ))}
-                </div>
-
-                {/* Main Form Content */}
-                <div className="flex-1 flex flex-col overflow-hidden">
-                    <div className="flex-1 overflow-y-auto p-8">
-                        <div className="max-w-4xl mx-auto bg-white rounded-lg border shadow-sm p-8 min-h-[600px]">
-
-                            {/* STEP 1: Kullanıcı Bilgileri */}
-                            {step === 1 && (
-                                <div className="space-y-6">
-                                    <section>
-                                        <h3 className="text-sm font-semibold text-neutral-500 mb-4">Durum</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div
-                                                className={cn("border p-4 rounded-lg flex items-start gap-3 cursor-pointer relative", formData.is_active ? "border-blue-200 bg-blue-50" : "border-neutral-200 opacity-60")}
-                                                onClick={() => setFormData({ ...formData, is_active: true })}
-                                            >
-                                                <div className={cn("w-4 h-4 mt-1 rounded-full border-2", formData.is_active ? "border-blue-500 bg-white" : "border-neutral-300")}></div>
-                                                <div>
-                                                    <div className="text-sm font-semibold text-neutral-800">Aktif Kullanıcı</div>
-                                                    <p className="text-xs text-neutral-500">Sisteme Email adresi ile giriş yapabilen kullanıcıdır.</p>
-                                                </div>
-                                                {formData.is_active && <CheckSquare className="absolute top-4 right-4 w-4 h-4 text-blue-500" />}
-                                            </div>
-                                            <div
-                                                className={cn("border p-4 rounded-lg flex items-start gap-3 cursor-pointer relative", !formData.is_active ? "border-blue-200 bg-blue-50" : "border-neutral-200 opacity-60")}
-                                                onClick={() => setFormData({ ...formData, is_active: false })}
-                                            >
-                                                <div className={cn("w-4 h-4 mt-1 rounded-full border-2", !formData.is_active ? "border-blue-500 bg-white" : "border-neutral-300")}></div>
-                                                <div>
-                                                    <div className="text-sm font-semibold text-neutral-800">Pasif Kullanıcı</div>
-                                                    <p className="text-xs text-neutral-500">Sisteme giriş yapamaz.</p>
-                                                </div>
-                                                {!formData.is_active && <CheckSquare className="absolute top-4 right-4 w-4 h-4 text-blue-500" />}
-                                            </div>
-                                        </div>
-                                    </section>
-
-                                    <section className="space-y-4">
-                                        <h3 className="text-sm font-semibold text-neutral-500">Temel Bilgiler</h3>
-
-                                        <div className="space-y-2">
-                                            <Label className="text-xs text-neutral-500">Ad Soyad *</Label>
-                                            <Input
-                                                placeholder="Ad Soyad Giriniz"
-                                                value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                            />
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-neutral-500">Email {formData.is_active && "*"}</Label>
-                                                <Input
-                                                    placeholder={formData.is_active ? "email@ornek.com" : "Opsiyonel"}
-                                                    value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-neutral-500">Telefon</Label>
-                                                <div className="flex">
-                                                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">+90</span>
-                                                    <Input
-                                                        className="rounded-l-none"
-                                                        value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-neutral-500">Firma Seçiniz</Label>
-                                                <Select onValueChange={(val) => setFormData({ ...formData, company: val })}>
-                                                    <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
-                                                    <SelectContent><SelectItem value="xyz">XYZ Firma</SelectItem></SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="flex items-center pt-8">
-                                                <Checkbox
-                                                    id="firma-yetkilisi"
-                                                    checked={formData.is_company_official}
-                                                    onCheckedChange={(val) => setFormData({ ...formData, is_company_official: val === true })}
-                                                />
-                                                <label htmlFor="firma-yetkilisi" className="text-sm ml-2 text-neutral-600">Firma Yetkilisi</label>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-neutral-500">İş Ünvanı Seçiniz</Label>
-                                                <Select onValueChange={(val) => setFormData({ ...formData, role: val })}>
-                                                    <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="muhendis">Mühendis</SelectItem>
-                                                        <SelectItem value="mimar">Mimar</SelectItem>
-                                                        <SelectItem value="taseron">Taşeron</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-neutral-500">Ekip Seçiniz</Label>
-                                                <Select onValueChange={(val) => setFormData({ ...formData, team: val })}>
-                                                    <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
-                                                    <SelectContent><SelectItem value="mimari">Mimari</SelectItem></SelectContent>
-                                                </Select>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <Input placeholder="TC No" value={formData.tc_no} onChange={(e) => setFormData({ ...formData, tc_no: e.target.value })} />
-                                            <Input placeholder="Açıklama" />
-                                        </div>
-
-                                    </section>
-
-
-
-                                    <div className="space-y-4">
-                                        <button
-                                            onClick={() => setShowExtraInfo(!showExtraInfo)}
-                                            className="w-full flex items-center justify-between p-4 border rounded-lg bg-neutral-50 hover:bg-neutral-100 transition-colors"
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <User className="w-4 h-4 text-neutral-500" />
-                                                <span className="text-sm font-semibold text-neutral-700">Ek Bilgiler & İkamet</span>
-                                            </div>
-                                            {showExtraInfo ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
-                                        </button>
-
-                                        {showExtraInfo && (
-                                            <div className="space-y-6 pt-2 animate-in slide-in-from-top-2 duration-200">
-                                                <section className="space-y-4">
-                                                    <h3 className="text-sm font-semibold text-neutral-500">Ek Bilgiler</h3>
-                                                    <div className="border rounded-lg p-6 space-y-6">
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Doğum Yeri</Label>
-                                                                <div className="relative">
-                                                                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
-                                                                    <Input className="pl-9" placeholder="Doğum Yeri" value={formData.birth_place} onChange={(e) => setFormData({ ...formData, birth_place: e.target.value })} />
-                                                                </div>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Doğum Tarihi</Label>
-                                                                <div className="relative">
-                                                                    <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
-                                                                    <Input className="pl-9" type="date" value={formData.birth_date} onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })} />
-                                                                </div>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Cinsiyet</Label>
-                                                                <Select onValueChange={(val) => setFormData({ ...formData, gender: val })}>
-                                                                    <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="erkek">Erkek</SelectItem>
-                                                                        <SelectItem value="kadin">Kadın</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Şirkete Giriş Tarihi</Label>
-                                                                <div className="relative">
-                                                                    <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
-                                                                    <Input className="pl-9" type="date" value={formData.start_date} onChange={(e) => setFormData({ ...formData, start_date: e.target.value })} />
-                                                                </div>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">IBAN</Label>
-                                                                <Input placeholder="TR..." value={formData.iban} onChange={(e) => setFormData({ ...formData, iban: e.target.value })} />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">SGK Sicil No</Label>
-                                                                <Input value={formData.sgk_no} onChange={(e) => setFormData({ ...formData, sgk_no: e.target.value })} />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Medeni Durum</Label>
-                                                                <Select onValueChange={(val) => setFormData({ ...formData, marital_status: val })}>
-                                                                    <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="bekar">Bekar</SelectItem>
-                                                                        <SelectItem value="evli">Evli</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Çocuk Sayısı</Label>
-                                                                <Input type="number" min="0" value={formData.child_count} onChange={(e) => setFormData({ ...formData, child_count: parseInt(e.target.value) || 0 })} />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Kan Grubu</Label>
-                                                                <Select onValueChange={(val) => setFormData({ ...formData, blood_type: val })}>
-                                                                    <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="a_rh_p">A Rh+</SelectItem>
-                                                                        <SelectItem value="b_rh_p">B Rh+</SelectItem>
-                                                                        <SelectItem value="0_rh_p">0 Rh+</SelectItem>
-                                                                        <SelectItem value="ab_rh_p">AB Rh+</SelectItem>
-                                                                        <SelectItem value="a_rh_n">A Rh-</SelectItem>
-                                                                        <SelectItem value="b_rh_n">B Rh-</SelectItem>
-                                                                        <SelectItem value="0_rh_n">0 Rh-</SelectItem>
-                                                                        <SelectItem value="ab_rh_n">AB Rh-</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Anne Adı</Label>
-                                                                <Input value={formData.mother_name} onChange={(e) => setFormData({ ...formData, mother_name: e.target.value })} />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Baba Adı</Label>
-                                                                <Input value={formData.father_name} onChange={(e) => setFormData({ ...formData, father_name: e.target.value })} />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Nüfusa Kayıtlı Olduğu Yer</Label>
-                                                                <div className="relative">
-                                                                    <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
-                                                                    <Input className="pl-9" value={formData.registry_place} onChange={(e) => setFormData({ ...formData, registry_place: e.target.value })} />
-                                                                </div>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Eğitim Durumu</Label>
-                                                                <Select onValueChange={(val) => setFormData({ ...formData, education_status: val })}>
-                                                                    <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="lise">Lise</SelectItem>
-                                                                        <SelectItem value="lisans">Lisans</SelectItem>
-                                                                        <SelectItem value="yuksek_lisans">Yüksek Lisans</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Askerlik Durumu</Label>
-                                                                <Select onValueChange={(val) => setFormData({ ...formData, military_status: val })}>
-                                                                    <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="yapildi">Yapıldı</SelectItem>
-                                                                        <SelectItem value="tecilli">Tecilli</SelectItem>
-                                                                        <SelectItem value="muaf">Muaf</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">İşe Girişi İçin Bildirimde Bulunan Kişi / Referans</Label>
-                                                                <Input value={formData.reference_person} onChange={(e) => setFormData({ ...formData, reference_person: e.target.value })} />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">İşe Girişini Onaylayan Kişi</Label>
-                                                                <Input value={formData.approval_person} onChange={(e) => setFormData({ ...formData, approval_person: e.target.value })} />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </section>
-
-                                                <section className="space-y-4">
-                                                    <h3 className="text-sm font-semibold text-neutral-500">İkamet Adres Bilgileri</h3>
-                                                    <div className="border rounded-lg p-6 space-y-6">
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Ülke Seçiniz</Label>
-                                                                <Select onValueChange={(val) => setFormData({ ...formData, country: val })}>
-                                                                    <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="turkiye">Türkiye</SelectItem>
-                                                                        <SelectItem value="kktc">KKTC</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Şehir Seçiniz</Label>
-                                                                <Select onValueChange={(val) => setFormData({ ...formData, city: val })}>
-                                                                    <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="istanbul">İstanbul</SelectItem>
-                                                                        <SelectItem value="ankara">Ankara</SelectItem>
-                                                                        <SelectItem value="izmir">İzmir</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                            <div className="col-span-1 md:col-span-2 space-y-2">
-                                                                <Label className="text-xs text-neutral-500">Adres</Label>
-                                                                <Textarea placeholder="Açık adres giriniz..." rows={3} value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </section>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* STEP 2: Şirket Yetkileri */}
-                            {/* STEP 2: Şirket Yetkileri */}
-                            {step === 2 && (
-                                <div className="space-y-6">
-                                    <div className="space-y-4">
-                                        <Select onValueChange={(val) => {
-                                            let perms = {};
-                                            if (val === 'admin') {
-                                                perms = { b: 'full', p: 'full', t: 'full', m: 'full', e: 'full', s: 'full', d: 'full', c: 'full' };
-                                            } else if (val === 'saha') {
-                                                perms = { b: 'none', p: 'none', t: 'view', m: 'full', e: 'edit', s: 'full', d: 'view', c: 'none' };
-                                            } else if (val === 'ofis') {
-                                                perms = { b: 'view', p: 'view', t: 'full', m: 'full', e: 'view', s: 'view', d: 'full', c: 'full' };
-                                            }
-                                            setFormData({ ...formData, permissions: perms });
-                                        }}>
-                                            <SelectTrigger className="w-full md:w-1/3 text-neutral-500">
-                                                <SelectValue placeholder="Şirket Yetki Örneği Seçiniz" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="admin">Yönetici (Admin)</SelectItem>
-                                                <SelectItem value="saha">Saha Personeli</SelectItem>
-                                                <SelectItem value="ofis">Ofis Personeli</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-
-                                        <div className="border rounded-lg overflow-hidden">
-                                            <div className="grid grid-cols-5 bg-neutral-50 p-4 text-xs font-semibold text-neutral-500 border-b">
-                                                <div className="col-span-1">Özellik</div>
-                                                <div className="text-center">Yok <Info className="w-3 h-3 inline ml-1 text-neutral-400" /></div>
-                                                <div className="text-center">Görme <Info className="w-3 h-3 inline ml-1 text-neutral-400" /></div>
-                                                <div className="text-center">Ekleme / Düzenleme <Info className="w-3 h-3 inline ml-1 text-neutral-400" /></div>
-                                                <div className="text-center">Tam Yetki <Info className="w-3 h-3 inline ml-1 text-neutral-400" /></div>
-                                            </div>
-
-                                            {[
-                                                { id: 'b', label: 'Şirket Paneli' },
-                                                { id: 'p', label: 'Kullanıcı ve Personeller' },
-                                                { id: 't', label: 'Taşeron ve Tedarikçiler' },
-                                                { id: 'm', label: 'Malzemeler' },
-                                                { id: 'e', label: 'Makine ve Ekipmanlar' },
-                                                { id: 's', label: 'Güncel Durum Takibi' },
-                                                { id: 'd', label: 'Denetlemeler' },
-                                                { id: 'c', label: 'Sözleşmeler' },
-                                            ].map((item, index) => (
-                                                <div key={item.id} className={cn("grid grid-cols-5 p-4 items-center hover:bg-neutral-50 transition-colors", index !== 7 && "border-b")}>
-                                                    <div className="text-sm font-medium text-neutral-700 flex items-center gap-2">
-                                                        {item.label}
-                                                        <Info className="w-3 h-3 text-neutral-400" />
-                                                    </div>
-                                                    {['none', 'view', 'edit', 'full'].map((perm) => (
-                                                        <div key={perm} className="flex justify-center">
-                                                            <div
-                                                                onClick={() => setFormData({
-                                                                    ...formData,
-                                                                    permissions: { ...formData.permissions, [item.id]: perm }
-                                                                })}
-                                                                className={cn(
-                                                                    "w-5 h-5 rounded-full border cursor-pointer flex items-center justify-center transition-all",
-                                                                    // @ts-ignore
-                                                                    (formData.permissions[item.id] || 'none') === perm
-                                                                        ? "border-blue-500 bg-white"
-                                                                        : "border-neutral-300 bg-transparent"
-                                                                )}
-                                                            >
-                                                                {/* @ts-ignore */}
-                                                                {(formData.permissions[item.id] || 'none') === perm && (
-                                                                    <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* STEP 4: Doküman */}
-                            {step === 4 && (
-                                <div className="space-y-6">
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-neutral-800">Doküman Şablonu Seçimi</h3>
-                                        <p className="text-sm text-neutral-500">Şablon seçin veya yeni bir şablon oluşturun.</p>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div
-                                            onClick={() => setFormData({ ...formData, document_template: 'saved' })}
-                                            className={cn(
-                                                "border rounded-xl p-6 flex items-center gap-4 cursor-pointer transition-all group",
-                                                formData.document_template === 'saved'
-                                                    ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
-                                                    : "hover:border-blue-500 hover:bg-blue-50"
-                                            )}
-                                        >
-                                            <div className={cn(
-                                                "w-12 h-12 rounded-lg flex items-center justify-center transition-colors",
-                                                formData.document_template === 'saved' ? "bg-white text-blue-600" : "bg-neutral-100 text-neutral-600 group-hover:bg-white group-hover:text-blue-600"
-                                            )}>
-                                                <List className="w-6 h-6" />
-                                            </div>
-                                            <div>
-                                                <h4 className="font-semibold text-neutral-800">Kayıtlı Doküman Şablonu Kullan</h4>
-                                                <p className="text-xs text-neutral-500 mt-1">Mevcut bir şablonu seçerek hızlıca başlayın.</p>
-                                            </div>
-                                        </div>
-
-                                        <div
-                                            onClick={() => setFormData({ ...formData, document_template: 'new' })}
-                                            className={cn(
-                                                "border rounded-xl p-6 flex items-center gap-4 cursor-pointer transition-all group",
-                                                formData.document_template === 'new'
-                                                    ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
-                                                    : "hover:border-blue-500 hover:bg-blue-50"
-                                            )}
-                                        >
-                                            <div className={cn(
-                                                "w-12 h-12 rounded-lg flex items-center justify-center transition-colors",
-                                                formData.document_template === 'new' ? "bg-white text-blue-600" : "bg-neutral-100 text-neutral-600 group-hover:bg-white group-hover:text-blue-600"
-                                            )}>
-                                                <FilePlus className="w-6 h-6" />
-                                            </div>
-                                            <div>
-                                                <h4 className="font-semibold text-neutral-800">Yeni Doküman Şablonu Oluştur</h4>
-                                                <p className="text-xs text-neutral-500 mt-1">İhtiyacınıza uygun yeni bir şablon oluşturun.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            {step === 3 && (
-                                <div className="space-y-6">
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-1 gap-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-neutral-500">Proje Seçiniz *</Label>
-                                                <Select onValueChange={setSelectedProject} value={selectedProject}>
-                                                    <SelectTrigger className="w-full md:w-1/2 border-red-300">
-                                                        <div className="flex items-center gap-2">
-                                                            <LayoutGrid className="w-4 h-4 text-neutral-500" />
-                                                            <SelectValue placeholder="Proje Seçiniz" />
-                                                        </div>
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="loft">Loft 777</SelectItem>
-                                                        <SelectItem value="vadi">Vadi İstanbul</SelectItem>
-                                                        <SelectItem value="merkez">Merkez Şantiye</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <Select disabled={!selectedProject} onValueChange={(val) => {
-                                                    // Template logic for projects
-                                                    if (!selectedProject) return;
-                                                    let perms = {};
-                                                    if (val === 'yonetici') {
-                                                        perms = { irsaliye: 'full', beton: 'full', talep: 'full', hakedis: 'full' };
-                                                    } else if (val === 'saha') {
-                                                        perms = { irsaliye: 'edit', beton: 'edit', talep: 'edit', hakedis: 'view' };
-                                                    }
-                                                    // @ts-ignore
-                                                    const currentProjs = formData.project_permissions || {};
-                                                    setFormData({
-                                                        ...formData,
-                                                        project_permissions: {
-                                                            ...currentProjs,
-                                                            [selectedProject]: perms
-                                                        }
-                                                    });
-                                                }}>
-                                                    <SelectTrigger className="w-full md:w-1/2 text-neutral-500">
-                                                        <SelectValue placeholder="Proje Yetki Örneği Seçiniz" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="yonetici">Proje Yöneticisi</SelectItem>
-                                                        <SelectItem value="saha">Saha Mühendisi</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        </div>
-
-                                        <div className="border rounded-lg overflow-hidden mt-6">
-                                            <div className="grid grid-cols-5 bg-neutral-50 p-4 text-xs font-semibold text-neutral-500 border-b">
-                                                <div className="col-span-1">Özellik</div>
-                                                <div className="text-center">Yok <Info className="w-3 h-3 inline ml-1 text-neutral-400" /></div>
-                                                <div className="text-center">Görme <Info className="w-3 h-3 inline ml-1 text-neutral-400" /></div>
-                                                <div className="text-center">Ekleme / Düzenleme <Info className="w-3 h-3 inline ml-1 text-neutral-400" /></div>
-                                                <div className="text-center">Tam Yetki <Info className="w-3 h-3 inline ml-1 text-neutral-400" /></div>
-                                            </div>
-
-                                            {!selectedProject ? (
-                                                <div className="p-12 text-center text-neutral-400 text-sm">
-                                                    Kayıt bulunamadı
-                                                </div>
-                                            ) : (
-                                                [
-                                                    { id: 'irsaliye', label: 'E-İrsaliye' },
-                                                    { id: 'beton', label: 'Beton Takip' },
-                                                    { id: 'talep', label: 'Satın Alma Talepleri' },
-                                                    { id: 'hakedis', label: 'Hakedişler' },
-                                                ].map((item, index) => (
-                                                    <div key={item.id} className={cn("grid grid-cols-5 p-4 items-center hover:bg-neutral-50 transition-colors", index !== 3 && "border-b")}>
-                                                        <div className="text-sm font-medium text-neutral-700 flex items-center gap-2">
-                                                            {item.label}
-                                                            <Info className="w-3 h-3 text-neutral-400" />
-                                                        </div>
-                                                        {['none', 'view', 'edit', 'full'].map((perm) => (
-                                                            <div key={perm} className="flex justify-center">
-                                                                <div
-                                                                    onClick={() => {
-                                                                        // @ts-ignore
-                                                                        const currentProjs = formData.project_permissions || {};
-                                                                        const currentProjPerms = currentProjs[selectedProject] || {};
-                                                                        setFormData({
-                                                                            ...formData,
-                                                                            project_permissions: {
-                                                                                ...currentProjs,
-                                                                                [selectedProject]: {
-                                                                                    ...currentProjPerms,
-                                                                                    [item.id]: perm
-                                                                                }
-                                                                            }
-                                                                        });
-                                                                    }}
-                                                                    className={cn(
-                                                                        "w-5 h-5 rounded-full border cursor-pointer flex items-center justify-center transition-all",
-                                                                        // @ts-ignore
-                                                                        ((formData.project_permissions?.[selectedProject]?.[item.id]) || 'none') === perm
-                                                                            ? "border-blue-500 bg-white"
-                                                                            : "border-neutral-300 bg-transparent"
-                                                                    )}
-                                                                >
-                                                                    {/* @ts-ignore */}
-                                                                    {((formData.project_permissions?.[selectedProject]?.[item.id]) || 'none') === perm && (
-                                                                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ))
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Actions */}
-                            <div className="border-t pt-6 mt-6 flex justify-end gap-3">
-                                {step > 1 && (
-                                    <Button variant="outline" onClick={() => {
-                                        const currentIdx = steps.findIndex(s => s.id === step);
-                                        if (currentIdx > 0) setStep(steps[currentIdx - 1].id);
-                                    }}>Geri</Button>
-                                )}
-                                {step !== 4 ? (
-                                    <Button className="bg-[#1e293b]" onClick={() => {
-                                        const currentIdx = steps.findIndex(s => s.id === step);
-                                        if (currentIdx < steps.length - 1) setStep(steps[currentIdx + 1].id);
-                                    }}>İleri</Button>
-                                ) : (
-                                    <Button className="bg-green-600 hover:bg-green-700" onClick={handleSubmit} disabled={loading}>
-                                        {loading ? 'Kaydediliyor...' : 'Kaydet'}
-                                    </Button>
-                                )}
-                            </div>
-
+                        <div>
+                            <CardTitle className="text-2xl font-black tracking-tight">
+                                {step === 1 ? 'Personel Kimliği' : step === 2 ? 'Ekstra Bilgiler' : step === 3 ? 'Erişim Yetkileri' : 'Son Onay'}
+                            </CardTitle>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{step}/{totalSteps} AŞAMA • HR MODULE</p>
                         </div>
                     </div>
+                </CardHeader>
+
+                <CardContent className="flex-1 p-8 md:p-12" ref={stepContainerRef}>
+                    {step === 1 && (
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                                <div className="space-y-4">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Hesap Durumu</Label>
+                                    <div className="flex gap-4">
+                                        <div
+                                            onClick={() => setFormData({ ...formData, is_active: true })}
+                                            className={cn("flex-1 p-4 rounded-2xl border-2 cursor-pointer transition-all", formData.is_active ? "border-primary bg-primary/5" : "border-border/60")}
+                                        >
+                                            <p className="font-black text-sm">AKTİF</p>
+                                            <p className="text-[10px] text-muted-foreground">Sisteme Giriş Yapabilir</p>
+                                        </div>
+                                        <div
+                                            onClick={() => setFormData({ ...formData, is_active: false })}
+                                            className={cn("flex-1 p-4 rounded-2xl border-2 cursor-pointer transition-all", !formData.is_active ? "border-orange-500 bg-orange-500/5" : "border-border/60")}
+                                        >
+                                            <p className="font-black text-sm">PASİF</p>
+                                            <p className="text-[10px] text-muted-foreground">Sadece Kayıtlı Personel</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-4 pt-10">
+                                    <div className="flex items-center gap-3 bg-muted/20 p-4 rounded-2xl border">
+                                        <Switch checked={formData.is_company_official} onCheckedChange={(v) => setFormData({ ...formData, is_company_official: v })} />
+                                        <Label className="font-bold cursor-pointer">Firma Yetkilisi / Admin</Label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Ad Soyad *</Label>
+                                    <Input placeholder="Ad Soyad..." value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="h-14 rounded-xl font-bold border-border/60" />
+                                </div>
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">E-Posta Adresi {formData.is_active && '*'}</Label>
+                                    <Input placeholder="email@firma.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="h-14 rounded-xl font-bold border-border/60" />
+                                </div>
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Ünvan / Rol</Label>
+                                    <Select value={formData.role} onValueChange={(v) => setFormData({ ...formData, role: v })}>
+                                        <SelectTrigger className="h-14 rounded-xl font-bold border-border/60">
+                                            <SelectValue placeholder="Seçiniz..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="glass">
+                                            {["Mühendis", "Mimar", "Taşeron", "Saha Elemanı", "Depocu", "Muhasebe"].map(r => (
+                                                <SelectItem key={r} value={r.toLowerCase()}>{r}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Telefon No</Label>
+                                    <Input placeholder="05XX XXX XX XX" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="h-14 rounded-xl font-bold border-border/60" />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 2 && (
+                        <div className="space-y-8 h-[400px] overflow-y-auto pr-4 custom-scrollbar">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase">T.C. Kimlik No</Label>
+                                    <Input value={formData.tc_no} onChange={(e) => setFormData({ ...formData, tc_no: e.target.value })} className="h-12 rounded-xl" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase">Doğum Tarihi</Label>
+                                    <Input type="date" value={formData.birth_date} onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })} className="h-12 rounded-xl" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase">Kan Grubu</Label>
+                                    <Select value={formData.blood_type} onValueChange={(v) => setFormData({ ...formData, blood_type: v })}>
+                                        <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Seç" /></SelectTrigger>
+                                        <SelectContent>
+                                            {["A Rh+", "A Rh-", "B Rh+", "B Rh-", "0 Rh+", "0 Rh-", "AB Rh+", "AB Rh-"].map(bt => (
+                                                <SelectItem key={bt} value={bt}>{bt}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase">Eğitim Durumu</Label>
+                                    <Select value={formData.education_status} onValueChange={(v) => setFormData({ ...formData, education_status: v })}>
+                                        <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {["Lise", "Ön Lisans", "Lisans", "Yüksek Lisans", "Doktora"].map(e => (<SelectItem key={e} value={e.toLowerCase()}>{e}</SelectItem>))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black text-muted-foreground uppercase">Şehir / İkamet</Label>
+                                    <Input value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="h-12 rounded-xl" placeholder="İstanbul..." />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase">IBAN No</Label>
+                                <Input value={formData.iban} onChange={(e) => setFormData({ ...formData, iban: e.target.value })} className="h-12 rounded-xl font-mono text-xs" placeholder="TR00 0000..." />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black text-muted-foreground uppercase">Adres Detayı</Label>
+                                <Textarea value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="rounded-xl min-h-[80px]" />
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 3 && (
+                        <div className="space-y-8">
+                            <div className="flex items-center gap-6 p-6 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-200 dark:border-slate-800">
+                                <div className="p-3 bg-white dark:bg-black rounded-2xl shadow-sm">
+                                    <Shield className="w-8 h-8 text-blue-600" />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="font-black text-lg tracking-tight">Şirket Genel Yetkileri</h3>
+                                    <p className="text-xs text-muted-foreground">Personelin ana modüllere olan erişim seviyesini belirleyin.</p>
+                                </div>
+                                <Select onValueChange={setCompanyPermission}>
+                                    <SelectTrigger className="w-56 h-12 rounded-xl border-blue-500/30 bg-white">
+                                        <SelectValue placeholder="Şablon Seç" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="admin">Sistem Yöneticisi</SelectItem>
+                                        <SelectItem value="saha">Saha / Tekniker</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="p-6 bg-indigo-50 dark:bg-indigo-900/10 rounded-3xl border border-indigo-200 dark:border-indigo-800/50">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <Briefcase className="w-6 h-6 text-indigo-600" />
+                                    <h3 className="font-black text-lg tracking-tight text-indigo-900 dark:text-indigo-400 uppercase">Proje Bazlı Yetkiler</h3>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase text-indigo-700/60">Aktif Proje Seçimi</Label>
+                                        <Select value={selectedProject} onValueChange={setSelectedProject}>
+                                            <SelectTrigger className="h-14 rounded-2xl bg-white border-indigo-200"><SelectValue placeholder="Proje Seç..." /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="loft">LOFT 777</SelectItem>
+                                                <SelectItem value="vadi">VADİ İSTANBUL</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase text-indigo-700/60">Proje Rolü</Label>
+                                        <Select disabled={!selectedProject} onValueChange={(v) => {
+                                            const p = v === 'full' ? { irsaliye: 'full', beton: 'full', talep: 'full' } : { irsaliye: 'view', beton: 'view', talep: 'none' };
+                                            setFormData({ ...formData, project_permissions: { ...formData.project_permissions, [selectedProject]: p } });
+                                        }}>
+                                            <SelectTrigger className="h-14 rounded-2xl bg-white border-indigo-200"><SelectValue placeholder="Seviye Seç..." /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="full">Tam Yetki</SelectItem>
+                                                <SelectItem value="view">Sadece İzleme</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 4 && (
+                        <div className="space-y-8 flex flex-col items-center justify-center text-center">
+                            <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mb-4">
+                                <FileText className="w-12 h-12 text-green-500 animate-bounce" />
+                            </div>
+                            <div>
+                                <h2 className="text-3xl font-black tracking-tight text-foreground uppercase">Kayıt Hazır</h2>
+                                <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+                                    {formData.name} isimli personel <b>{formData.role}</b> rolü ile <b>{formData.is_active ? 'AKTİF' : 'PASİF'}</b> olarak kaydedilecektir.
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 w-full max-w-lg mt-8">
+                                <div className="p-4 bg-muted/20 border rounded-2xl text-left">
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase">Yetki Seviyesi</p>
+                                    <p className="font-bold">{Object.keys(formData.permissions).length > 0 ? 'Admin/Özel' : 'Standart'}</p>
+                                </div>
+                                <div className="p-4 bg-muted/20 border rounded-2xl text-left">
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase">Projeler</p>
+                                    <p className="font-bold">{Object.keys(formData.project_permissions).length} Proje</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+
+                <div className="p-8 border-t border-border/40 mt-auto bg-muted/5 flex items-center justify-between gap-6">
+                    {step > 1 ? (
+                        <Button magnetic variant="ghost" onClick={prevStep} className="rounded-2xl h-16 px-10 font-black text-muted-foreground hover:text-foreground uppercase tracking-tight">
+                            <ChevronLeft className="mr-3 h-6 w-6" /> GERİ
+                        </Button>
+                    ) : <div />}
+
+                    {step < totalSteps ? (
+                        <Button magnetic onClick={nextStep} className="rounded-2xl h-16 px-12 font-black shadow-2xl shadow-primary/20 bg-foreground text-background hover:bg-foreground/90 uppercase tracking-tight">
+                            SONRAKİ <ChevronRight className="ml-3 h-6 w-6" />
+                        </Button>
+                    ) : (
+                        <Button magnetic onClick={handleSubmit} disabled={loading} className="rounded-full h-16 px-16 font-black shadow-2xl shadow-primary/30 bg-primary hover:bg-primary/90 text-white uppercase tracking-tight">
+                            {loading ? (
+                                <span className="flex items-center gap-3">
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> KAYDEDİLİYOR...
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-3">
+                                    <Save className="w-6 h-6" /> PERSONELİ KAYDET
+                                </span>
+                            )}
+                        </Button>
+                    )}
                 </div>
+            </Card>
+
+            <div className="flex justify-center items-center gap-8 opacity-20 py-4">
+                <Building2 className="w-6 h-6" />
+                <Users className="w-6 h-6" />
+                <Briefcase className="w-6 h-6" />
             </div>
         </div>
     );
