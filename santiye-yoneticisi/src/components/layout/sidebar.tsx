@@ -21,7 +21,10 @@ import {
     Calendar,
     Receipt,
     Building2,
-    Truck
+    Truck,
+    Shield,
+    PieChart,
+    Scan
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { motion, AnimatePresence } from "framer-motion";
@@ -134,6 +137,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
                 <NavGroup label="YÖNETİM" collapsed={collapsed}>
                     <NavItem href="/" icon={<LayoutDashboard />} label="Kontrol Paneli" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
+                    <NavItem href="/ortaklik" icon={<Shield />} label="Ortaklık Paneli" pathname={pathname} collapsed={collapsed} onClick={onNavigate} activeColor="text-blue-500" />
+                    <NavItem href="/maliyet" icon={<PieChart />} label="Maliyet Analizi" pathname={pathname} collapsed={collapsed} onClick={onNavigate} activeColor="text-indigo-500" />
                     <NavItem href="/cari-yonetim" icon={<FileText />} label="Cari Hesaplar" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
                     <NavItem href="/ceks" icon={<Calendar />} label="Çek Takvimi" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
                     <NavItem href="/faturalar" icon={<Receipt />} label="Faturalar" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
@@ -145,6 +150,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     <NavItem href="/beton" icon={<Building />} label="Beton Dökümü" pathname={pathname} collapsed={collapsed} onClick={onNavigate} activeColor="text-blue-500" />
                     <NavItem href="/makine-calismalari" icon={<Hammer />} label="Makine Parkı" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
                     <NavItem href="/irsaliye" icon={<Truck />} label="İrsaliye Girişi" pathname={pathname} collapsed={collapsed} onClick={onNavigate} />
+                    <NavItem href="/ai-tarama" icon={<Scan />} label="AI Evrak Tarama" pathname={pathname} collapsed={collapsed} onClick={onNavigate} activeColor="text-indigo-500" />
                 </NavGroup>
 
                 <NavGroup label="KURUMSAL" collapsed={collapsed}>

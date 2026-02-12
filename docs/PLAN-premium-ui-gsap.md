@@ -48,6 +48,12 @@ Uygulamanın her köşesinde hissedilen, göz yormayan ancak sistemin bütünlü
     - *Agent:* `frontend-specialist`
     - *Status:* COMPLETED
 
+### Faz 5: Stratejik Vizyon & Yönetim Modülleri (P2)
+- [x] **Task 10:** "Adalet Paneli" (Ortaklık Dengesi) Dashboard widget'ı ve sayfası.
+- [x] **Task 11:** "Denetim İzi" (Audit Log) dijital mühür sistemi arayüzü.
+- [x] **Task 12:** Blok bazlı "Maliyet Ağacı" (Tree-view) analizi sayfası.
+- [x] **Task 13:** AI Tabanlı "Evrak Tarama" (OCR) görsel arayüzü ve GSAP animasyonları.
+
 ### Phase X: Final Doğrulama (P3)
 - [x] **Verify 1:** `python .agent/scripts/verify_all.py .` (Manual Audit Performed - Python N/A)
 - [x] **Verify 2:** `python .agent/skills/frontend-design/scripts/ux_audit.py .` (Manual Audit Performed)
