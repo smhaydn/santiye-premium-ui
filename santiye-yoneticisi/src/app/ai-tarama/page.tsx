@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
     Scan, FileText, Image as ImageIcon, CheckCircle2,
-    Loader2, ArrowRight, ShieldCheck, Database, Zap, History, Trash2, Edit3
+    Loader2, ArrowRight, ShieldCheck, Database, Zap, History, Trash2, Edit3, AlertTriangle, ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import gsap from "gsap";
@@ -22,6 +22,7 @@ export default function AIScanPage() {
     const [preview, setPreview] = useState<string | null>(null);
     const [status, setStatus] = useState<'idle' | 'uploading' | 'scanning' | 'done'>('idle');
     const [scanType, setScanType] = useState<'irsaliye' | 'fatura'>('irsaliye');
+    const [duplicateFound, setDuplicateFound] = useState<any>(null);
 
     // Extracted Data State (Editable)
     const [extractedData, setExtractedData] = useState({
@@ -41,6 +42,7 @@ export default function AIScanPage() {
             setFile(selectedFile);
             setPreview(URL.createObjectURL(selectedFile));
             setStatus('idle');
+            setDuplicateFound(null);
         }
     };
 
@@ -56,10 +58,28 @@ export default function AIScanPage() {
         };
     }
 
+    const checkDuplicates = async (docNo: string, supplier: string) => {
+        if (!docNo || !supplier) return null;
+
+        const table = scanType === 'fatura' ? 'general_invoices' : 'waybills';
+        const field = scanType === 'fatura' ? 'invoice_number' : 'waybill_no';
+
+        const { data, error } = await supabase
+            .from(table)
+            .select('*')
+            .eq(field, docNo)
+            .ilike('supplier', `%${supplier}%`)
+            .maybeSingle();
+
+        if (error) console.error("Duplicate Check Error:", error);
+        return data;
+    };
+
     const startAnalysis = async () => {
         if (!file) return;
 
         setStatus('scanning');
+        setDuplicateFound(null);
 
         // GSAP Scanning Animation
         if (scanLineRef.current) {
@@ -70,9 +90,9 @@ export default function AIScanPage() {
         }
 
         const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+        let finalData = { ...extractedData };
 
         if (apiKey) {
-            // REAL AI MODE
             try {
                 const genAI = new GoogleGenerativeAI(apiKey);
                 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -92,39 +112,48 @@ export default function AIScanPage() {
                 const response = await result.response;
                 const text = response.text();
 
-                // Clean the text from markdown code blocks if present
                 const jsonMatch = text.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     const parsed = JSON.parse(jsonMatch[0]);
-                    setExtractedData({
+                    finalData = {
                         docNo: parsed.docNo || '',
                         date: parsed.date || new Date().toISOString().split('T')[0],
                         supplier: parsed.supplier || '',
                         amount: parsed.amount?.toString() || '',
                         company: parsed.company || 'Camsan&Koparan'
-                    });
+                    };
+                    setExtractedData(finalData);
                 }
             } catch (error) {
                 console.error("Gemini Error:", error);
                 toast.error("AI okuma hatası, simülasyon verileri yüklendi.");
-                // Fallback to simulation data on error
-                setExtractedData({
+                finalData = {
                     docNo: scanType === 'fatura' ? 'FT-2024-' + Math.floor(Math.random() * 9000 + 1000) : 'IRS-' + Math.floor(Math.random() * 900000),
                     date: new Date().toISOString().split('T')[0],
                     supplier: 'KALYONCU DEMİR ÇELİK A.Ş.',
                     amount: scanType === 'fatura' ? '124500' : '45.20',
                     company: 'Camsan&Koparan'
-                });
+                };
+                setExtractedData(finalData);
             }
         } else {
-            // SIMULATION MODE
             await new Promise(r => setTimeout(r, 4000));
-            setExtractedData({
+            finalData = {
                 docNo: scanType === 'fatura' ? 'FT-2024-' + Math.floor(Math.random() * 9000 + 1000) : 'IRS-' + Math.floor(Math.random() * 900000),
                 date: new Date().toISOString().split('T')[0],
                 supplier: 'KALYONCU DEMİR ÇELİK A.Ş.',
                 amount: scanType === 'fatura' ? '124500' : '45.20',
                 company: 'Camsan&Koparan'
+            };
+            setExtractedData(finalData);
+        }
+
+        // CONFLICT DETECTION
+        const duplicate = await checkDuplicates(finalData.docNo, finalData.supplier);
+        if (duplicate) {
+            setDuplicateFound(duplicate);
+            toast.warning("Dikkat: Mükerrer Kayıt!", {
+                description: "Bu belge numarası bu tedarikçi için zaten mevcut.",
             });
         }
 
@@ -211,6 +240,27 @@ export default function AIScanPage() {
                 </div>
             )}
 
+            {duplicateFound && (
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-50 border-2 border-red-200 p-6 rounded-[2rem] flex items-center justify-between gap-6 text-red-900 shadow-xl shadow-red-500/10"
+                >
+                    <div className="flex items-center gap-5">
+                        <div className="p-4 bg-red-500 text-white rounded-2xl animate-bounce">
+                            <AlertTriangle className="w-8 h-8" />
+                        </div>
+                        <div>
+                            <h4 className="font-black text-xl tracking-tight uppercase">MÜKERRER KAYIT TESPİT EDİLDİ!</h4>
+                            <p className="text-sm font-medium opacity-80 mt-1">Bu belge numarası ({extractedData.docNo}) "{extractedData.supplier}" için sistemde zaten kayıtlı.</p>
+                        </div>
+                    </div>
+                    <Button variant="outline" className="rounded-xl gap-2 border-red-200 bg-white text-red-600 hover:bg-red-50 font-black">
+                        MEVCUT KAYDA GİT <ExternalLink className="w-4 h-4" />
+                    </Button>
+                </motion.div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 {/* Left: Upload & Preview */}
                 <div className="lg:col-span-7 space-y-6">
@@ -256,7 +306,7 @@ export default function AIScanPage() {
                         <div className="flex gap-4">
                             <Button
                                 magnetic
-                                onClick={() => { setPreview(null); setFile(null); setStatus('idle'); }}
+                                onClick={() => { setPreview(null); setFile(null); setStatus('idle'); setDuplicateFound(null); }}
                                 variant="outline"
                                 className="flex-1 rounded-2xl h-20 font-black uppercase tracking-widest border-red-500/20 text-red-500 hover:bg-red-50 shadow-xl shadow-red-500/5"
                             >
@@ -335,11 +385,14 @@ export default function AIScanPage() {
                                         {status === 'done' && (
                                             <Button
                                                 onClick={handleSaveToSystem}
-                                                disabled={status === 'uploading'}
-                                                className="w-full mt-8 rounded-2xl h-16 font-black bg-green-600 text-white shadow-2xl shadow-green-600/30 uppercase tracking-[0.2em] transition-all hover:scale-[1.02]"
+                                                disabled={status === 'uploading' || (duplicateFound && !confirm("Mükerrer olduğu halde kaydedilsin mi?"))}
+                                                className={cn(
+                                                    "w-full mt-8 rounded-2xl h-16 font-black uppercase tracking-[0.2em] transition-all hover:scale-[1.02] shadow-2xl",
+                                                    duplicateFound ? "bg-orange-500 text-white shadow-orange-500/30" : "bg-green-600 text-white shadow-green-600/30"
+                                                )}
                                             >
                                                 {status === 'uploading' ? <Loader2 className="animate-spin" /> : (
-                                                    <>SİSTEME KAYDET <ArrowRight className="ml-3 w-6 h-6" /></>
+                                                    <>{duplicateFound ? 'YİNE DE KAYDET' : 'SİSTEME KAYDET'} <ArrowRight className="ml-3 w-6 h-6" /></>
                                                 )}
                                             </Button>
                                         )}

@@ -3,7 +3,8 @@ import { Open_Sans, Poppins, JetBrains_Mono } from "next/font/google"; // Import
 import "./globals.css";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
-import { ThemeProvider } from "@/components/theme-provider"; // To be created
+import { ThemeProvider } from "@/components/theme-provider";
+import { AssistantChat } from "@/components/shared/assistant-chat";
 
 const openSans = Open_Sans({ subsets: ["latin"], variable: "--font-sans" });
 const poppins = Poppins({
@@ -51,6 +52,9 @@ export default function RootLayout({
               <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
                 {children}
               </main>
+
+              {/* AI Assistant Chatbot */}
+              <AssistantChat />
             </div>
           </div>
         </ThemeProvider>
